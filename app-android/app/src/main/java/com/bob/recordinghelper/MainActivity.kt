@@ -18,14 +18,21 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (savedInstanceState == null && com.bob.recordinghelper.local.Onboarding.shouldShow(this)) {
+            startActivity(com.bob.recordinghelper.ui.OnboardingActivity.intent(this)); finish(); return
+        }
         enableEdgeToEdge()
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
-        Ui.insets(b.root, top = b.container, bottom = b.nav)
+        val rail = b.nav as? com.google.android.material.navigationrail.NavigationRailView
+        if (rail != null) Ui.railInsets(b.root, rail, b.container) else Ui.insets(b.root, top = b.container, bottom = b.nav)
         b.nav.setOnItemSelectedListener { item -> show(item.itemId); true }
         b.nav.setOnItemReselectedListener { }
         // The first menu item is pre-selected, so selecting it again never fires the listener: attach explicitly.
-        if (savedInstanceState == null) { b.nav.selectedItemId = R.id.nav_home; show(R.id.nav_home) }
+        if (savedInstanceState == null) {
+            val tab = intent.getIntExtra("tab", R.id.nav_home)
+            b.nav.selectedItemId = tab; show(tab)
+        }
     }
 
     override fun onResume() {

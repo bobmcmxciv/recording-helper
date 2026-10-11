@@ -26,6 +26,7 @@ class VoiceLibraryActivity : AppCompatActivity() {
         b = ActivityVoiceLibraryBinding.inflate(layoutInflater)
         setContentView(b.root)
         Ui.insets(b.root, top = b.appbar, bottom = b.scroll)
+        Ui.column(b.scroll, 720)
         b.toolbar.setNavigationOnClickListener { finish() }
         b.btnEnroll.setOnClickListener { start("self") }
         b.btnIdentify.setOnClickListener { start("identify") }

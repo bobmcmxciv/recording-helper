@@ -56,6 +56,37 @@
             android:maxLines="1" />
     </com.google.android.material.textfield.TextInputLayout>
 
+    <com.google.android.material.chip.ChipGroup
+        android:id="@+id/categoryGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        app:selectionRequired="true"
+        app:singleSelection="true">
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/catWork"
+            style="@style/Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="公事" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/catPersonal"
+            style="@style/Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="私事" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/catNone"
+            style="@style/Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="未分类" />
+    </com.google.android.material.chip.ChipGroup>
+
     <TextView
         android:id="@+id/tvEvidence"
         style="@style/Text.Muted"

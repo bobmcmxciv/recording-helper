@@ -64,6 +64,10 @@ class LocalStore private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "loca
     @Synchronized fun toggle(id: String) { get(id)?.let { put("todo", it.put("done", !it.optBoolean("done")).put("reviewed", true)) } }
     @Synchronized fun setDone(id: String, done: Boolean) { get(id)?.let { put("todo", it.put("done", done).put("reviewed", true)) } }
     @Synchronized fun review(id: String) { get(id)?.let { if (!it.optBoolean("reviewed")) put("todo", it.put("reviewed", true)) } }
+    @Synchronized fun setCategory(id: String, category: String) {
+        get(id)?.let { put("todo", it.put("category", LocalAnalysis.category(category)).put("reviewed", true)) }
+    }
+    @Synchronized fun setDue(id: String, due: String) { get(id)?.let { put("todo", it.put("due", due.trim()).put("reviewed", true)) } }
     @Synchronized fun updateTodo(id: String, title: String, due: String) {
         get(id)?.let { put("todo", it.put("title", title.trim()).put("due", due.trim()).put("reviewed", true)) }
     }

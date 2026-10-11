@@ -163,6 +163,7 @@
     <style name="Toolbar" parent="Widget.Material3.Toolbar">
         <item name="titleTextAppearance">@style/TextAppearance.Material3.TitleLarge</item>
         <item name="navigationIcon">@drawable/ic_back</item>
+        <item name="navigationContentDescription">返回</item>
         <item name="android:background">@android:color/transparent</item>
     </style>
 </resources>

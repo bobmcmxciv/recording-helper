@@ -18,6 +18,8 @@
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
+    <!-- Android 13+: audio files indexed by the system (recorder folders) without "All files access". -->
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
 
     <application
         android:name=".App"
@@ -57,6 +59,8 @@
         <activity android:name=".SettingsActivity" android:exported="false" android:label="@string/settings" />
         <activity android:name=".TranscribeLiveActivity" android:exported="false" android:label="转写过程" />
         <activity android:name=".ui.RecordingDetailActivity" android:exported="false" />
+        <activity android:name=".ui.AiSettingsActivity" android:exported="false" />
+        <activity android:name=".ui.OnboardingActivity" android:exported="false" />
         <activity android:name=".local.MicrophoneActivity" android:exported="false" />
         <activity android:name=".local.VoiceLibraryActivity" android:exported="false" />
         <activity android:name=".local.VoiceRelationActivity" android:exported="false" />

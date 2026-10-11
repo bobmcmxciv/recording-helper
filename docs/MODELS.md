@@ -24,10 +24,14 @@
 | Qwen3.5-4B | [Hugging Face Qwen/Qwen3.5-4B](https://huggingface.co/Qwen/Qwen3.5-4B) | Apache-2.0 | 官方没有发布 GGUF。上表哈希对应 [unsloth/Qwen3.5-4B-GGUF](https://huggingface.co/unsloth/Qwen3.5-4B-GGUF) 中的 `Qwen3.5-4B-Q4_0.gguf`（社区量化，同为 Apache-2.0） |
 | llama.cpp | [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) | MIT | GGUF 架构名 `qwen35`，需要 b7990 之后的版本 |
 
-因为上述许可条款（尤其是 SenseVoice）尚不完全明确，本仓库不直接托管转换后的权重。你可以：
+## 推荐来源（应用内一键下载）
 
-1. 按下面的步骤自行转换，放到手机上导入；
-2. 或者把文件放到自己的 HTTPS 服务器上（见 `deploy/models/README.md`），在应用里填直链和 SHA-256。
+首次打开的向导和「设置 → 模型中心」会读取一份清单 `models.json`（默认地址 `https://github.com/bobmcmxciv/recording-helper/releases/download/models-v1/models.json`），逐个下载并按 SHA-256 校验：
+
+- 语音识别三件套与声纹模型托管在本仓库 Release `models-v1`，附来源与许可说明（SenseVoice 按 FunASR Model Open Source License v1.1 注明出处并保留模型名；CAM++ 为 Apache-2.0）。
+- 本地大模型从 `hf-mirror.com` 下载（镜像 `huggingface.co`），约 2.4 GB。
+
+清单地址可以在模型中心改成你自己的 HTTPS 服务器（见 `deploy/models/README.md`），格式与 `deploy/models/models.example.json` 相同。也可以完全不下载，自行转换后从本地文件导入。
 
 ## 下载 GGUF
 

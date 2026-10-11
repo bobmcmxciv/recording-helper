@@ -37,7 +37,9 @@ class MicrophoneActivity : AppCompatActivity() {
         if (savedInstanceState == null) { pendingMode = intent.getStringExtra("startMode"); pendingName = intent.getStringExtra("name").orEmpty() }
         b = ActivityMicrophoneBinding.inflate(layoutInflater)
         setContentView(b.root)
-        Ui.insets(b.root, top = b.appbar, bottom = b.scroll)
+        Ui.insets(b.root, top = b.appbar, bottom = b.body)
+        Ui.column(b.scroll, 720); Ui.column(b.panel, 720)
+        Ui.tabletop(this) { hinge -> b.body.post { fold(hinge) } }
         b.toolbar.setNavigationOnClickListener { finish() }
         b.btnStart.setOnClickListener { requestCapture("record", "") }
         b.btnStop.setOnClickListener { startService(Intent(this, MicrophoneService::class.java).setAction(MicrophoneService.STOP)) }
@@ -50,6 +52,23 @@ class MicrophoneActivity : AppCompatActivity() {
         if (pendingMode != null && !permissionInFlight) window.decorView.post { pendingMode?.let { requestCapture(it, pendingName) } }
     }
     override fun onPause() { handler.removeCallbacks(refresh); stopPlayback(); super.onPause() }
+
+    /** Half-opened on a table: transcript above the hinge, controls below it. Flat: controls on top, transcript scrolls under them. */
+    private fun fold(hinge: android.graphics.Rect?) {
+        val body = b.body; val scroll = b.scroll; val panel = b.panel
+        val tabletop = hinge != null
+        if (tabletop != (body.indexOfChild(scroll) == 0)) { body.removeView(panel); body.addView(panel, if (tabletop) 1 else 0) }
+        val top = IntArray(2).also { body.getLocationInWindow(it) }[1]
+        val gap = (resources.displayMetrics.density * 8).toInt()
+        scroll.layoutParams = (scroll.layoutParams as android.widget.LinearLayout.LayoutParams).apply {
+            if (tabletop) { height = (hinge!!.top - top).coerceAtLeast(0); weight = 0f } else { height = 0; weight = 1f }
+        }
+        panel.layoutParams = (panel.layoutParams as android.widget.LinearLayout.LayoutParams).apply {
+            if (tabletop) { height = 0; weight = 1f } else { height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT; weight = 0f }
+        }
+        panel.setPadding(panel.paddingLeft, if (tabletop) hinge!!.height() + gap else gap, panel.paddingRight, panel.paddingBottom)
+        panel.gravity = if (tabletop) android.view.Gravity.CENTER_VERTICAL else android.view.Gravity.TOP
+    }
 
     private fun render() {
         val enrollment = (if (MicState.busy) MicState.snapshot().mode else pendingMode ?: "record") != "record"

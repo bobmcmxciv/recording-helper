@@ -20,8 +20,11 @@ object AutoImportSettings {
     fun hasAccess(ctx: Context): Boolean {
         val grants = ctx.contentResolver.persistedUriPermissions.filter { it.isReadPermission }.map { it.uri.toString() }.toSet()
         if (LocalSettings.treeUris(ctx).any { it in grants }) return true
-        return hasFileAccess(ctx)
+        return hasFileAccess(ctx) || hasMediaAccess(ctx)
     }
+    /** READ_MEDIA_AUDIO (Android 13+) or READ_EXTERNAL_STORAGE: audio indexed by the system, no "All files access" needed. */
+    fun hasMediaAccess(ctx: Context): Boolean = ctx.checkSelfPermission(mediaPermission()) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    fun mediaPermission(): String = if (Build.VERSION.SDK_INT >= 33) android.Manifest.permission.READ_MEDIA_AUDIO else android.Manifest.permission.READ_EXTERNAL_STORAGE
     fun hasFileAccess(ctx: Context): Boolean = if (Build.VERSION.SDK_INT >= 30) Environment.isExternalStorageManager()
         else ctx.checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_GRANTED
 
@@ -76,6 +79,7 @@ object AutoImportSettings {
         .put("days", Prefs.scanDays(ctx))
         .put("choice", Prefs.scanScope(ctx) ?: JSONObject.NULL)
         .put("hasAccess", hasAccess(ctx))
+        .put("mediaAccess", hasMediaAccess(ctx))
         .put("authorizedTrees", LocalSettings.treeUris(ctx).size)
         .put("readableDirectoryCount", Prefs.scanDirs(ctx).count { relative ->
             val dir = if (relative.startsWith('/')) File(relative) else File(Environment.getExternalStorageDirectory(), relative)

@@ -37,6 +37,31 @@ object RecordingSources {
         if (it.startsWith('/')) File(it) else File(Environment.getExternalStorageDirectory(), it)
     }.distinctBy { it.absolutePath }
 
+    /** Folder names used by phone recorders; keeps music and downloads out of the queue. */
+    val FOLDER_HINTS = listOf("sound_recorder", "recordings", "recording", "recorder", "/record/", "callrecord", "call_rec", "/sounds/", "voice recorder", "通话录音", "录音")
+
+    /** Audio the system indexed inside recorder-like folders, as content URIs the queue can open. */
+    fun mediaStore(ctx: Context, found: LinkedHashMap<String, RecordingSource>, full: () -> Boolean): Int {
+        var errors = 0
+        val uri = android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+        val projection = arrayOf(android.provider.MediaStore.Audio.Media._ID, android.provider.MediaStore.Audio.Media.DISPLAY_NAME,
+            android.provider.MediaStore.Audio.Media.SIZE, android.provider.MediaStore.Audio.Media.DATE_MODIFIED, android.provider.MediaStore.Audio.Media.DATA)
+        try {
+            val cursor = ctx.contentResolver.query(uri, projection, null, null, android.provider.MediaStore.Audio.Media.DATE_MODIFIED + " DESC")
+            if (cursor == null) return 1
+            cursor.use { c -> while (c.moveToNext() && !full()) {
+                val id = c.getLong(0); val name = c.getString(1).orEmpty(); val bytes = c.getLong(2); val modified = c.getLong(3) * 1000; val data = c.getString(4).orEmpty()
+                if (name.substringAfterLast('.', "").lowercase() !in AutoScanWorker.AUDIO_EXTS || bytes <= 0) continue
+                val lower = data.lowercase().replace('\\', '/')
+                if (FOLDER_HINTS.none { lower.contains(it) }) continue
+                val path = if (data.isNotBlank()) runCatching { File(data).canonicalPath }.getOrDefault(data) else "media:$id"
+                val item = RecordingSource(android.content.ContentUris.withAppendedId(uri, id).toString(), fileKey(path, bytes, modified), name, bytes, modified)
+                found.putIfAbsent(path, item)
+            } }
+        } catch (_: Exception) { errors++ }
+        return errors
+    }
+
     fun collect(ctx: Context, stopped: () -> Boolean = { false }): SourceInventory {
         val found = linkedMapOf<String, RecordingSource>()
         val visited = hashSetOf<String>()
@@ -56,6 +81,7 @@ object RecordingSources {
         if (AutoImportSettings.hasFileAccess(ctx)) for (dir in candidates(ctx)) {
             try { if (dir.isDirectory) visit(dir, 0) } catch (_: Exception) { errors++ }
         }
+        if (!AutoImportSettings.hasFileAccess(ctx) && AutoImportSettings.hasMediaAccess(ctx)) errors += mediaStore(ctx, found) { full() }
         val directCount = found.size
         val documents = hashSetOf<String>()
         fun visitTree(tree: Uri, parent: String, depth: Int) {

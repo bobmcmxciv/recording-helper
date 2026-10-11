@@ -12,24 +12,34 @@
 <p align="center">
   <img src="docs/screenshots/voice.png" width="190" alt="声纹库" />
   <img src="docs/screenshots/dark.png" width="190" alt="深色模式" />
+  <img src="docs/screenshots/onboarding.png" width="190" alt="首次设置向导" />
+  <img src="docs/screenshots/ai.png" width="190" alt="在线 AI 风险告知" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/wide.png" width="580" alt="扩展宽度：侧栏导航与两列待办" />
 </p>
 
 ## 它做什么
 
-1. **自动读取系统录音**：授权录音目录后，新的通话 / 会议录音会自动进入队列。处理哪些历史录音由你第一次明确选择。
-2. **本机转文字**：SenseVoice-Small 在手机上运行，支持 CPU 与联发科 / 高通 NPU。可选的声纹模型能区分说话人。
-3. **本机生成纪要和待办**：Qwen3.5-4B（GGUF）在充电时整理。每条待办都附带原文句子作为依据，对不上原文的待办会被丢弃。
-4. **应用内录音**：边录边出分段文字；录入自己的声纹后，能标出哪些话是你说的。
-5. **跨录音认出对方**：电话里通常只有你和另一个人，以你的声纹为锚点，多段通话里就能找出同一个对方，试听确认后命名入库。
-6. **可选多设备同步**：自托管的 Node.js 服务只接收文字、纪要和待办，浏览器看板随时查看；删除也会同步。
+1. **首次打开有向导**：下载或导入模型、授权录音来源、选择处理范围，然后看着第一批录音被逐条转写，文字实时出现。
+2. **自动读取系统录音**：授权读取音频后，新的通话 / 会议录音会自动进入队列。处理哪些历史录音由你第一次明确选择。
+3. **本机转文字**：SenseVoice-Small 在手机上运行，支持 CPU 与联发科 / 高通 NPU。可选的声纹模型能区分说话人。
+4. **纪要和待办**：默认由本机的 Qwen3.5-4B（GGUF）整理，每条待办都附带原文句子作为依据，并标注公事或私事。也可以在阅读风险告知后改用在线 AI 服务（OpenAI、Anthropic、DeepSeek、阿里云百炼、智谱、Moonshot、Gemini，或任何 OpenAI / Anthropic 兼容接口）。
+5. **待办面板**：按时段筛选，一眼看到这周有多少事、公事私事各几件、哪些逾期；AI 给出时段总结和建议先做的三件；滑动完成或推迟，长按批量处理。
+6. **应用内录音**：边录边出分段文字；录入自己的声纹后，能标出哪些话是你说的。
+7. **跨录音认出对方**：电话里通常只有你和另一个人，以你的声纹为锚点，多段通话里就能找出同一个对方，试听确认后命名入库。
+8. **可选多设备同步**：自托管的 Node.js 服务只接收文字、纪要和待办，浏览器看板随时查看；删除也会同步。
 
 完整功能清单与状态见 [docs/FEATURES.md](docs/FEATURES.md)。
 
 ## 安装
 
 - 下载 [Releases](../../releases) 中的 APK（arm64，Android 8.0 以上；`snapdragon` 版额外包含高通 NPU 运行库）。
-- 首次打开按首页的三步引导：授权录音目录 → 导入模型 → 选择处理范围。
-- 模型文件的来源、哈希与转换方法见 [docs/MODELS.md](docs/MODELS.md)。应用不内置模型权重。
+- 首次打开会进入向导：从推荐来源下载模型（或本地导入）→ 授权录音来源 → 选择处理范围 → 看着第一批录音被转写。
+- 模型文件的来源、哈希与转换方法见 [docs/MODELS.md](docs/MODELS.md)。安装包不内置模型权重，向导会从 Release `models-v1` 的清单下载并校验。
+- 上架到 Google Play、国内应用商店、App Store 与鸿蒙的前置条件见 [docs/PUBLISHING.md](docs/PUBLISHING.md)。
+- 扩展到英、日、韩、法、德、西、葡、阿等语言的转写模型选型与架构见 [docs/I18N.md](docs/I18N.md)。
+- 折叠屏、三折与平板的布局规则（宽度三档、侧栏导航、两列看板、桌面模式录音）见 [docs/FOLDABLE.md](docs/FOLDABLE.md)。
 
 已在 Redmi（HyperOS 16）与 OPPO Find X9 Pro（ColorOS 17）真机验证。HONOR / vivo 已内置候选录音路径，尚未真机验证；任何机型都可以通过授权实际目录使用。
 
@@ -67,7 +77,7 @@ node --test server/test/*.test.js
 | `server/` | 同步服务与浏览器看板 |
 | `deploy/` | 部署模板与模型托管说明 |
 | `tools/` | 模型导出脚本、测试语音生成 |
-| `docs/` | 功能清单、架构、模型说明 |
+| `docs/` | 功能清单、架构、模型说明、上架流程、多语言架构 |
 
 ## 隐私与边界
 

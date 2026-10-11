@@ -46,6 +46,7 @@ class RecordingDetailActivity : AppCompatActivity() {
         b = ActivityRecordingDetailBinding.inflate(layoutInflater)
         setContentView(b.root)
         Ui.insets(b.root, top = b.appbar, bottom = b.scroll)
+        Ui.column(b.scroll, 720)
         b.toolbar.setNavigationOnClickListener { finish() }
         b.toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {

@@ -76,4 +76,7 @@ interface TextModel {
     fun generate(prompt: String, maxTokens: Int, onText: (String) -> Unit): String?
     fun countTokens(text: String): Int
     fun cancel() {}
+    /** One system + user turn. The default wraps both in the Qwen ChatML template with thinking switched off. */
+    fun chat(system: String, user: String, maxTokens: Int, onText: (String) -> Unit = {}): String? =
+        generate("<|im_start|>system\n$system<|im_end|>\n<|im_start|>user\n$user<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n", maxTokens, onText)
 }

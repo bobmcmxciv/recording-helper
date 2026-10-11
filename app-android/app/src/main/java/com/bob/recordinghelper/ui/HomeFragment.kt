@@ -53,6 +53,7 @@ class HomeFragment : TabFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val ctx = requireContext()
+        Ui.column(b.root, 720)
         b.btnRecord.setOnClickListener { startActivity(Intent(ctx, MicrophoneActivity::class.java)) }
         b.btnImport.setOnClickListener { importAudio.launch(Imports.AUDIO_TYPES) }
         b.btnSetup.setOnClickListener { startActivity(Intent(ctx, SettingsActivity::class.java)) }
@@ -69,6 +70,21 @@ class HomeFragment : TabFragment() {
         b.btnVoice.setOnClickListener { startActivity(Intent(ctx, VoiceLibraryActivity::class.java)) }
         b.btnAnalyze.setOnClickListener { AnalysisWorker.schedule(ctx, true); ImportWorker.schedule(ctx); toast("已排队整理待处理记录") }
         childFragmentManager.setFragmentResultListener("changed", viewLifecycleOwner) { _, _ -> refresh() }
+    }
+
+    private val liveListener = { renderLive() }
+    override fun onResume() { super.onResume(); com.bob.recordinghelper.LiveAsr.addListener(liveListener); renderLive() }
+    override fun onPause() { com.bob.recordinghelper.LiveAsr.removeListener(liveListener); super.onPause() }
+
+    /** The transcription engine reports each piece as it comes back; show the current file and the last few lines. */
+    private fun renderLive() {
+        val binding = _b ?: return
+        val s = com.bob.recordinghelper.LiveAsr.snapshot()
+        if (!s.active) { binding.liveBox.visibility = View.GONE; return }
+        binding.liveBox.visibility = View.VISIBLE
+        binding.tvLiveFile.text = "正在转写：" + s.title + if (s.files > 1) "（第 ${s.fileNo} / ${s.files} 个）" else ""
+        val lines = s.rows.filter { it.text.isNotBlank() }.takeLast(3).map { it.text }
+        binding.tvLiveText.text = if (lines.isEmpty()) s.phase else lines.joinToString("\n")
     }
 
     override fun onDestroyView() { _b = null; super.onDestroyView() }

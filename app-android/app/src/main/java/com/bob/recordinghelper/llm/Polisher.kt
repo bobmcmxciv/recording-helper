@@ -44,7 +44,7 @@ class Polisher(private val model: TextModel) {
             if (cancelled) throw InterruptedException("polishing cancelled")
             val partial = StringBuilder()
             val maxTokens = (model.countTokens(c) * 1.6).toInt() + 64
-            val raw = model.generate(prompt(context, c), maxTokens) { piece ->
+            val raw = model.chat(SYSTEM, user(context, c), maxTokens) { piece ->
                 partial.append(piece)
                 onProgress(Progress(i, chunks.size, partial.toString()))
             }
@@ -69,6 +69,11 @@ class Polisher(private val model: TextModel) {
             "严格禁止：增加原文没有的内容；删除有意义的内容；改变原意；总结、解释、续写或翻译。\n" +
             "保持原来的行数和顺序。如果一行以“名字：”开头，这个“名字：”原样保留。\n" +
             "只输出校对后的文本，不要输出任何说明。"
+
+        fun user(context: String, chunk: String): String = buildString {
+            if (context.isNotBlank()) append("上文（只作参考，不要输出）：\n").append(context).append("\n\n")
+            append("需要校对的文本：\n").append(chunk)
+        }
 
         /** Qwen ChatML with thinking switched off (an empty think block). */
         fun prompt(context: String, chunk: String): String {

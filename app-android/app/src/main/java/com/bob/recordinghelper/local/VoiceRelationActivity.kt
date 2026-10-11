@@ -51,6 +51,7 @@ class VoiceRelationActivity : AppCompatActivity() {
         b = ActivityVoiceRelationBinding.inflate(layoutInflater)
         setContentView(b.root)
         Ui.insets(b.root, top = b.appbar, bottom = b.scroll)
+        Ui.column(b.scroll, 720)
         b.toolbar.setNavigationOnClickListener { finish() }
         b.btnSelect.setOnClickListener { selectDialog() }
         b.btnEnrollSelf.setOnClickListener {

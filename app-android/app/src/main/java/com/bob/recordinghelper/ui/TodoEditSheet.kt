@@ -54,9 +54,11 @@ class TodoEditSheet : BottomSheetDialogFragment() {
             if (title.isEmpty()) { b.title.error = "请输入内容"; return@setOnClickListener }
             val due = b.due.text?.toString()?.trim().orEmpty()
             lifecycleScope.launch {
+                val cat = when (b.categoryGroup.checkedChipId) { b.catWork.id -> "work"; b.catPersonal.id -> "personal"; else -> "" }
                 withContext(Dispatchers.IO) {
                     val store = LocalStore.of(ctx)
-                    if (id == null) store.addTodo(title, due) else store.updateTodo(id!!, title, due)
+                    val tid = if (id == null) store.addTodo(title, due) else { store.updateTodo(id!!, title, due); id!! }
+                    store.setCategory(tid, cat)
                     SyncWorker.schedule(ctx)
                 }
                 done()
@@ -74,7 +76,10 @@ class TodoEditSheet : BottomSheetDialogFragment() {
         }
     }
 
+    private var category = ""
     private fun fill(t: JSONObject) {
+        category = com.bob.recordinghelper.local.LocalAnalysis.category(t.optString("category"))
+        b.categoryGroup.check(when (category) { "work" -> b.catWork.id; "personal" -> b.catPersonal.id; else -> b.catNone.id })
         b.title.setText(t.optString("title"))
         b.due.setText(t.optString("due"))
         val evidence = t.optString("evidence").trim()

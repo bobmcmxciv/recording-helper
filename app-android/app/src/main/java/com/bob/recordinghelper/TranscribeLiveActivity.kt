@@ -26,6 +26,7 @@ import java.io.File
 class TranscribeLiveActivity : AppCompatActivity() {
     private lateinit var b: ActivityLiveBinding
     private var follow = true
+    private var touching = false
     private val listener = { render() }
     private val muted by lazy { ContextCompat.getColor(this, R.color.md_on_surface_variant) }
     private val onPrimary by lazy { ContextCompat.getColor(this, R.color.md_on_primary) }
@@ -37,8 +38,17 @@ class TranscribeLiveActivity : AppCompatActivity() {
         b = ActivityLiveBinding.inflate(layoutInflater)
         setContentView(b.root)
         Ui.insets(b.root, top = b.appbar, bottom = b.scroll)
+        Ui.column(b.scroll, 720)
         b.toolbar.setNavigationOnClickListener { finish() }
-        b.scroll.setOnScrollChangeListener { v, _, y, _, _ -> follow = y + v.height >= b.tvBody.height - 120 }
+        // Follow the newest line only while the user is not holding or dragging the list and it already sits at the bottom.
+        b.scroll.setOnScrollChangeListener { _, _, _, _, _ -> if (!touching) follow = atBottom() }
+        b.scroll.setOnTouchListener { _, e ->
+            when (e.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN, android.view.MotionEvent.ACTION_MOVE -> { touching = true; follow = false }
+                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> { touching = false; follow = atBottom() }
+            }
+            false
+        }
         b.btnTrial.setOnClickListener {
             if (TrialAsr.running) Toast.makeText(this, "已有一个试转在进行", Toast.LENGTH_SHORT).show()
             else pick.launch(arrayOf("audio/*", "video/mp4"))
@@ -81,12 +91,16 @@ class TranscribeLiveActivity : AppCompatActivity() {
     override fun onStart() { super.onStart(); LiveAsr.addListener(listener); render() }
     override fun onStop() { LiveAsr.removeListener(listener); super.onStop() }
 
+    private fun atBottom(): Boolean = b.scroll.scrollY + b.scroll.height >= (b.scroll.getChildAt(0)?.height ?: 0) - 120
+
     private fun render() {
         val s = LiveAsr.snapshot()
-        b.tvHead.text = header(s)
+        val head = header(s)
+        if (b.tvHead.text.toString() != head.toString()) b.tvHead.text = head
         val main = if (s.final.isNotEmpty()) finalText(s) else liveText(s)
-        b.tvBody.text = if (s.polishTitle.isNotEmpty()) SpannableStringBuilder(polishText(s)).append(main) else main
-        if (follow) b.scroll.post { b.scroll.fullScroll(View.FOCUS_DOWN) }
+        val body = if (s.polishTitle.isNotEmpty()) SpannableStringBuilder(polishText(s)).append(main) else main
+        if (b.tvBody.text.toString() != body.toString()) b.tvBody.text = body
+        if (follow && !touching) b.scroll.post { b.scroll.smoothScrollTo(0, (b.scroll.getChildAt(0)?.height ?: 0)) }
     }
 
     private fun polishText(s: LiveAsr.Snapshot): CharSequence {

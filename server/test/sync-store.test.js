@@ -96,3 +96,10 @@ test('deleted tombstones: boolean accepted, other types rejected, excluded from 
   assert.equal(after.reviewedPending, 0);
   assert.equal(s.pull().items.length, 5, 'tombstones still sync to other devices');
 });
+
+test('todo category: work/personal/empty accepted, other values rejected', t => {
+  const s = fixture(t);
+  const ok = s.push({ device: 'phoneA', changes: [{ ...change(7), body: { ...change(7).body, category: 'work' } }] });
+  assert.equal(ok.results[0].item.body.category, 'work');
+  assert.throws(() => s.push({ device: 'phoneA', changes: [{ ...change(8), body: { ...change(8).body, category: 'urgent' } }] }));
+});

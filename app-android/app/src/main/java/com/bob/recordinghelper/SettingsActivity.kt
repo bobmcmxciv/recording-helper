@@ -55,6 +55,7 @@ class SettingsActivity : AppCompatActivity() {
         b = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(b.root)
         Ui.insets(b.root, top = b.appbar, bottom = b.scroll)
+        Ui.column(b.scroll, 720)
         b.toolbar.setNavigationOnClickListener { finish() }
         b.btnSaveSync.setOnClickListener { saveSync() }
         b.btnDisableSync.setOnClickListener {
@@ -92,6 +93,9 @@ class SettingsActivity : AppCompatActivity() {
         row(list, R.drawable.ic_schedule, "处理范围", AutoImportSettings.scopeLabel(this)) { autoSetup() }
         val trees = LocalSettings.treeUris(this)
         row(list, R.drawable.ic_folder, "录音目录", if (trees.isEmpty()) "未授权 · 点击选择系统录音机的保存目录" else "已授权 ${trees.size} 个目录") { manageTrees() }
+        row(list, R.drawable.ic_check, "读取录音文件", if (AutoImportSettings.hasMediaAccess(this)) "已授权 · 自动发现系统录音机的文件" else "未授权 · 点击授权，无需全部文件权限") {
+            ActivityCompat.requestPermissions(this, arrayOf(AutoImportSettings.mediaPermission()), 7)
+        }
         row(list, R.drawable.ic_lock, "全部文件权限", if (AutoImportSettings.hasFileAccess(this)) "已授予 · 自动发现品牌录音目录" else "未授予 · 仅扫描已授权目录") {
             if (Build.VERSION.SDK_INT >= 30) startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:$packageName")))
             else ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE), 5)
@@ -164,6 +168,9 @@ class SettingsActivity : AppCompatActivity() {
                     if (which == 0) model.launch(arrayOf("*/*")) else download()
                 }.setNeutralButton("取消当前安装") { _, _ -> WorkManager.getInstance(this).cancelUniqueWork("model-install"); toast("已请求取消，原模型不会被删除") }.show()
             }
+        }
+        row(list, R.drawable.ic_cloud, "AI 整理方式", if (com.bob.recordinghelper.llm.LlmSettings.remoteEnabled(this)) "在线 AI 服务 · " + (com.bob.recordinghelper.llm.LlmProviders.byId(com.bob.recordinghelper.llm.LlmSettings.providerId(this))?.name ?: "") else "本地模型（离线）") {
+            startActivity(com.bob.recordinghelper.ui.AiSettingsActivity.intent(this))
         }
         val accelerated = LocalSettings.prefs(this).getBoolean("asrAcceleration", false)
         row(list, R.drawable.ic_bolt, "转写引擎", if (accelerated) "实验性 NPU 加速（可能长时间初始化）" else "稳定 CPU（默认）") {

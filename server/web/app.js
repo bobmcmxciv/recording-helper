@@ -465,6 +465,8 @@
       : h('button', { type: 'button', class: 'todo-title', title: '编辑标题和期限', dataset: { focus: 'title:' + item.id }, onclick: () => startEdit(item) }, title);
     const meta = [];
     if (due) meta.push(dueChip(due));
+    if (b.category === 'work') meta.push(h('span', { class: 'chip chip-cat' }, '公事'));
+    else if (b.category === 'personal') meta.push(h('span', { class: 'chip chip-cat' }, '私事'));
     if (b.reviewed === false && !done) meta.push(h('span', { class: 'chip chip-ai' }, 'AI 建议'));
     const rec = !compact && b.recordingId ? state.model.recById.get(b.recordingId) : null;
     if (rec) {

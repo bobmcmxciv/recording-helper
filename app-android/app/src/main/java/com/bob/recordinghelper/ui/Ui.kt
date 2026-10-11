@@ -9,6 +9,9 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.launch
 import com.bob.recordinghelper.R
 import com.google.android.material.chip.Chip
 import java.time.Instant
@@ -32,6 +35,54 @@ object Ui {
         ViewCompat.requestApplyInsets(root)
     }
 
+
+    /** Material window width classes: compact phones, medium (unfolded small foldables, portrait tablets), expanded (large foldables, tablets). */
+    enum class Width { COMPACT, MEDIUM, EXPANDED }
+
+    fun width(ctx: Context): Width {
+        val w = ctx.resources.configuration.screenWidthDp
+        return if (w >= 840) Width.EXPANDED else if (w >= 600) Width.MEDIUM else Width.COMPACT
+    }
+
+    /** Keeps a reading column on wide windows: width beyond [maxDp] becomes symmetric horizontal padding. */
+    fun column(view: View, maxDp: Int = 640) {
+        val baseLeft = view.paddingLeft
+        val baseRight = view.paddingRight
+        val max = (maxDp * view.resources.displayMetrics.density).toInt()
+        (view as? android.view.ViewGroup)?.clipToPadding = false
+        fun fit(width: Int) {
+            val extra = ((width - max) / 2).coerceAtLeast(0)
+            if (view.paddingLeft != baseLeft + extra || view.paddingRight != baseRight + extra) view.updatePadding(left = baseLeft + extra, right = baseRight + extra)
+        }
+        view.addOnLayoutChangeListener { _, l, _, r, _, _, _, _, _ -> fit(r - l) }
+        if (view.width > 0) fit(view.width)
+    }
+
+    /** Navigation rail layout: the rail takes the start inset, the content the end inset, both take top and bottom. */
+    fun railInsets(root: View, rail: View, content: View) {
+        ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            rail.updatePadding(left = bars.left, top = bars.top, bottom = bars.bottom)
+            content.updatePadding(right = bars.right, top = bars.top, bottom = bars.bottom)
+            insets
+        }
+        ViewCompat.requestApplyInsets(root)
+    }
+
+    /** Reports the hinge bounds (window coordinates) while a foldable rests half-opened like a laptop; null when flat or absent. */
+    fun tabletop(activity: androidx.appcompat.app.AppCompatActivity, onChange: (android.graphics.Rect?) -> Unit) {
+        activity.lifecycleScope.launch {
+            activity.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+                androidx.window.layout.WindowInfoTracker.getOrCreate(activity).windowLayoutInfo(activity).collect { info ->
+                    val fold = info.displayFeatures.filterIsInstance<androidx.window.layout.FoldingFeature>().firstOrNull {
+                        it.state == androidx.window.layout.FoldingFeature.State.HALF_OPENED && it.orientation == androidx.window.layout.FoldingFeature.Orientation.HORIZONTAL
+                    }
+                    onChange(fold?.bounds)
+                }
+            }
+        }
+    }
+
     fun toast(ctx: Context, message: String) = Toast.makeText(ctx, message, Toast.LENGTH_LONG).show()
 
     private fun local(iso: String?): LocalDateTime? = try {
@@ -40,6 +91,7 @@ object Ui {
 
     /** 2026-10-11 */
     fun date(iso: String?): String = local(iso)?.toLocalDate()?.toString() ?: ""
+    fun localDate(iso: String?): LocalDate? = local(iso)?.toLocalDate()
 
     /** 今天 14:30 · 昨天 09:12 · 10月3日 · 2025-12-24 */
     fun friendly(iso: String?): String {

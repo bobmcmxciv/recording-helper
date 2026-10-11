@@ -485,3 +485,5 @@ button.todo-title:hover { text-decoration: underline; text-decoration-color: var
     transition-duration: .001ms !important; scroll-behavior: auto !important;
   }
 }
+
+.chip-cat { background: var(--surface-2, #E8EDEC); color: var(--muted, #5E7270); }

@@ -49,7 +49,7 @@ object Binders {
         b.card.setOnClickListener { onClick() }
     }
 
-    fun todo(b: ItemTodoBinding, t: JSONObject, onToggle: (Boolean) -> Unit, onOpen: () -> Unit, onSource: (() -> Unit)?) {
+    fun todo(b: ItemTodoBinding, t: JSONObject, onToggle: (Boolean) -> Unit, onOpen: () -> Unit, onSource: (() -> Unit)?, onCategory: ((String) -> Unit)? = null) {
         val done = t.optBoolean("done")
         b.check.setOnCheckedChangeListener(null)
         b.check.isChecked = done
@@ -71,11 +71,16 @@ object Binders {
         val unreviewed = !t.optBoolean("reviewed") && !done
         b.chipReview.visibility = if (unreviewed) View.VISIBLE else View.GONE
         Ui.tint(b.chipReview, R.color.status_ready_bg, R.color.status_ready_fg)
+        val cat = com.bob.recordinghelper.local.LocalAnalysis.category(t.optString("category"))
+        b.chipCategory.text = when (cat) { "work" -> "公事"; "personal" -> "私事"; else -> "未分类" }
+        Ui.tint(b.chipCategory, R.color.status_neutral_bg, R.color.status_neutral_fg)
+        b.chipCategory.visibility = if (onCategory != null || cat.isNotEmpty()) View.VISIBLE else View.GONE
+        b.chipCategory.setOnClickListener { onCategory?.invoke(when (cat) { "work" -> "personal"; "personal" -> ""; else -> "work" }) }
         val hasSource = t.optString("recordingId").isNotBlank() && onSource != null
         b.chipSource.visibility = if (hasSource) View.VISIBLE else View.GONE
         Ui.tint(b.chipSource, R.color.status_neutral_bg, R.color.status_neutral_fg)
         b.chipSource.setOnClickListener { onSource?.invoke() }
-        b.chips.visibility = if (due.isBlank() && !unreviewed && !hasSource) View.GONE else View.VISIBLE
+        b.chips.visibility = View.VISIBLE
 
         val evidence = t.optString("evidence").trim()
         b.tvEvidence.visibility = if (evidence.isBlank()) View.GONE else View.VISIBLE

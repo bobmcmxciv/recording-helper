@@ -46,6 +46,7 @@ class MeFragment : TabFragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        Ui.column(b.root, 720)
         b.btnSyncSettings.setOnClickListener { startActivity(SettingsActivity.intent(requireContext(), "sync")) }
         b.btnBoard.setOnClickListener {
             val base = Prefs.baseUrl(requireContext())
@@ -68,7 +69,12 @@ class MeFragment : TabFragment() {
         val llm = LlmEngine.modelIn(LocalAsr.llmDir(ctx)) != null
         val spk = File(LocalAsr.modelDir(ctx), "spk.tflite").length() > 0
         row(b.listSetup, R.drawable.ic_memory, "语音模型", if (asr) "已就绪 · 本机转写" else "未安装 · 到模型中心导入") { startActivity(SettingsActivity.intent(ctx, "models")) }
-        row(b.listSetup, R.drawable.ic_auto, "本地大模型", if (llm) "已就绪 · 自动生成纪要和待办" else "未安装 · 只保留转写原文") { startActivity(SettingsActivity.intent(ctx, "models")) }
+        val remote = com.bob.recordinghelper.llm.LlmSettings.remoteEnabled(ctx)
+        row(b.listSetup, R.drawable.ic_auto, "AI 整理", when {
+            remote -> "在线 AI 服务 · " + (com.bob.recordinghelper.llm.LlmProviders.byId(com.bob.recordinghelper.llm.LlmSettings.providerId(ctx))?.name ?: "")
+            llm -> "本地模型已就绪 · 自动生成纪要和待办"
+            else -> "本地模型未安装 · 可下载或改用在线服务"
+        }) { startActivity(AiSettingsActivity.intent(ctx)) }
         row(b.listSetup, R.drawable.ic_voice, "声纹模型", if (spk) "已就绪 · 可区分说话人" else "未安装 · 可选") { startActivity(SettingsActivity.intent(ctx, "models")) }
         row(b.listSetup, R.drawable.ic_folder, "自动转写", AutoImportSettings.scopeLabel(ctx) + if (Prefs.autoScan(ctx)) "" else "（未开启）") { startActivity(SettingsActivity.intent(ctx, "import")) }
 
@@ -78,6 +84,7 @@ class MeFragment : TabFragment() {
         row(b.listTools, R.drawable.ic_visibility, "转写过程", "查看模型正在处理什么") { startActivity(Intent(ctx, TranscribeLiveActivity::class.java)) }
         row(b.listTools, R.drawable.ic_download, "导出数据", "转写、纪要和待办（JSON）") { export.launch("recording-helper-backup.json") }
         row(b.listTools, R.drawable.ic_settings, "全部设置", "模型、录音来源、同步、系统") { startActivity(Intent(ctx, SettingsActivity::class.java)) }
+        row(b.listTools, R.drawable.ic_arrow_forward, "首次设置向导", "重新走一遍模型、目录与范围设置") { com.bob.recordinghelper.local.Onboarding.reopen(ctx); startActivity(OnboardingActivity.intent(ctx)) }
 
         b.listAbout.removeAllViews()
         val version = runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull() ?: ""

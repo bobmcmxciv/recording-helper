@@ -12,7 +12,7 @@ const MAX_CHANGES = 50;
 const PAGE = 50;
 const FIELDS = {
   recording: ['id', 'title', 'text', 'polished', 'summary', 'occurredAt', 'status', 'error', 'createdAt', 'ownerDevice', 'deleted'],
-  todo: ['id', 'title', 'due', 'evidence', 'recordingId', 'done', 'reviewed', 'createdAt', 'deleted'],
+  todo: ['id', 'title', 'due', 'evidence', 'recordingId', 'done', 'reviewed', 'createdAt', 'deleted', 'category'],
 };
 const STATUSES = ['pending', 'analyzing', 'ready', 'error', 'silent'];
 
@@ -29,6 +29,7 @@ function validate(change) {
   if (Object.keys(body).some(k => !allowed.includes(k))) throw bad('unsupported field');
   if ('deleted' in body && typeof body.deleted !== 'boolean') throw bad('invalid deleted');
   if (change.kind === 'todo' && typeof body.done !== 'boolean') throw bad('invalid done');
+  if (change.kind === 'todo' && body.category !== undefined && !['work', 'personal', ''].includes(body.category)) throw bad('invalid category');
   if (change.kind === 'recording' && (typeof body.text !== 'string' || !STATUSES.includes(body.status))) throw bad('invalid recording');
   for (const key of Object.keys(body)) {
     const value = body[key];

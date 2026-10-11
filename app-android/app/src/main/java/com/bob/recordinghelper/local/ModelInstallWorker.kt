@@ -58,7 +58,9 @@ class ModelInstallWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, p
                 conn!!.inputStream
             }
             val digest = MessageDigest.getInstance("SHA-256")
+            val expected = conn?.contentLengthLong ?: -1L
             var total = 0L; var tick = 0L
+            setProgressAsync(workDataOf("slot" to slot, "bytes" to 0L, "total" to expected))
             input.use { stream -> part.outputStream().use { out ->
                 val buffer = ByteArray(65536)
                 while (true) {
@@ -68,7 +70,11 @@ class ModelInstallWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, p
                     require(total <= 12L * 1024 * 1024 * 1024) { "文件过大" }
                     if (target.parentFile!!.usableSpace < 32L * 1024 * 1024) error("存储空间不足")
                     out.write(buffer, 0, count); digest.update(buffer, 0, count)
-                    if (total - tick > 8 * 1024 * 1024) { tick = total; Progress.notifyOngoing(ctx, "模型安装", "$slot · ${Progress.human(total)}", 0, 0) }
+                    if (total - tick > 4 * 1024 * 1024) {
+                        tick = total
+                        Progress.notifyOngoing(ctx, "模型安装", "$slot · ${Progress.human(total)}", 0, 0)
+                        setProgressAsync(workDataOf("slot" to slot, "bytes" to total, "total" to expected))
+                    }
                 }
                 out.fd.sync()
             } }
@@ -76,6 +82,7 @@ class ModelInstallWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, p
             require(hash.isEmpty() || hash == actual) { "SHA-256 校验失败，未替换原模型" }
             ModelFiles.validate(part, slot)
             ModelGate.hold { java.nio.file.Files.move(part.toPath(), target.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE) }
+            setProgressAsync(workDataOf("slot" to slot, "bytes" to total, "total" to total, "done" to true))
             LocalSettings.prefs(ctx).edit().putString("modelStatus", "$slot 已安装 · SHA-256 $actual").apply()
             AnalysisWorker.schedule(ctx); ImportWorker.schedule(ctx)
             if (slot != "model.gguf") {
