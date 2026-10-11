@@ -50,12 +50,16 @@ object Ui {
         val baseRight = view.paddingRight
         val max = (maxDp * view.resources.displayMetrics.density).toInt()
         (view as? android.view.ViewGroup)?.clipToPadding = false
-        fun fit(width: Int) {
+        // Applied at pre-draw rather than inside the layout pass: a requestLayout issued during the first layout is dropped on some devices.
+        fun fit(): Boolean {
+            val width = view.width
+            if (width <= 0) return false
             val extra = ((width - max) / 2).coerceAtLeast(0)
-            if (view.paddingLeft != baseLeft + extra || view.paddingRight != baseRight + extra) view.updatePadding(left = baseLeft + extra, right = baseRight + extra)
+            if (view.paddingLeft == baseLeft + extra && view.paddingRight == baseRight + extra) return false
+            view.updatePadding(left = baseLeft + extra, right = baseRight + extra)
+            return true
         }
-        view.addOnLayoutChangeListener { _, l, _, r, _, _, _, _, _ -> fit(r - l) }
-        if (view.width > 0) fit(view.width)
+        view.viewTreeObserver.addOnPreDrawListener { !fit() }
     }
 
     /** Navigation rail layout: the rail takes the start inset, the content the end inset, both take top and bottom. */
