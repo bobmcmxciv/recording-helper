@@ -1,0 +1,99 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+def keyProps = new Properties()
+def keyFile = rootProject.file('key.properties')
+if (keyFile.exists()) {
+    keyFile.withInputStream { keyProps.load(it) }
+}
+
+android {
+    namespace 'com.bob.recordinghelper'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.bob.recordinghelper'
+        minSdk 26
+        targetSdk 35
+        versionCode 30
+        versionName '2.0.0'
+        // The prebuilt native speech / LLM libraries are arm64 only.
+        ndk { abiFilters 'arm64-v8a' }
+        resourceConfigurations += ['zh']
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    }
+
+    signingConfigs {
+        release {
+            storeFile keyFile.exists() ? file(keyProps.getProperty('storeFile')) : null
+            storePassword keyProps.getProperty('storePassword')
+            keyAlias keyProps.getProperty('keyAlias')
+            keyPassword keyProps.getProperty('keyPassword')
+        }
+    }
+
+    // standard: universal build (MediaTek NPU / NNAPI / CPU). snapdragon: adds the Qualcomm QNN runtime (~50 MB)
+    // for Snapdragon 8 Elite class chips.
+    flavorDimensions = ['soc']
+    productFlavors {
+        standard { dimension 'soc' }
+        snapdragon { dimension 'soc' }
+    }
+
+    buildFeatures {
+        viewBinding true
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            testProguardFiles 'test-proguard-rules.pro'
+            if (keyFile.exists()) signingConfig signingConfigs.release
+        }
+    }
+
+    packaging {
+        // Extracted to nativeLibraryDir: the Qualcomm HTP skel libraries are read from there by path.
+        jniLibs {
+            useLegacyPackaging true
+            // Keep only the HTP backend for V79 (8 Elite) / V81 (8 Elite Gen 5).
+            excludes += ['**/libQnnDsp*.so', '**/libQnnGpu.so', '**/libQnnHtpV6*.so', '**/libQnnHtpV73*.so', '**/libQnnHtpV75*.so']
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+    testBuildType 'release'
+}
+
+dependencies {
+    androidTestImplementation 'androidx.test:runner:1.6.2'
+    androidTestImplementation 'junit:junit:4.13.2'
+    // JVM unit tests (speaker front-end / clustering vs the Python reference); Android org.json is a stub on the JVM
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20240303'
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.activity:activity-ktx:1.9.3'
+    implementation 'androidx.fragment:fragment-ktx:1.8.5'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.7'
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1'
+    // 2.10.5 fixes foreground service stop/start races with pending commands (b/432069314).
+    implementation 'androidx.work:work-runtime-ktx:2.10.5'
+    // LiteRT (the TFLite successor, same org.tensorflow.lite API); its JNI library is 16 KB page aligned.
+    implementation 'com.google.ai.edge.litert:litert:1.4.2'
+    implementation 'com.qualcomm.qti:qnn-litert-delegate:2.51.0'
+    snapdragonImplementation 'com.qualcomm.qti:qnn-runtime:2.51.0'
+}

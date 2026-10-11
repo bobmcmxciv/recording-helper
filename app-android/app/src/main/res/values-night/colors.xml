@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="md_primary">#77D8BC</color>
+    <color name="md_on_primary">#003830</color>
+    <color name="md_primary_container">#005144</color>
+    <color name="md_on_primary_container">#B9EFE0</color>
+    <color name="md_secondary">#B1CCC7</color>
+    <color name="md_on_secondary">#1C3532</color>
+    <color name="md_secondary_container">#334B48</color>
+    <color name="md_on_secondary_container">#CDE8E3</color>
+    <color name="md_tertiary">#FFBB4D</color>
+    <color name="md_on_tertiary">#492E00</color>
+    <color name="md_tertiary_container">#684300</color>
+    <color name="md_on_tertiary_container">#FFDEA6</color>
+    <color name="md_error">#FFB4AB</color>
+    <color name="md_on_error">#690005</color>
+    <color name="md_error_container">#93000A</color>
+    <color name="md_on_error_container">#FFDAD6</color>
+    <color name="md_background">#101D23</color>
+    <color name="md_on_background">#EBF4F1</color>
+    <color name="md_surface">#101D23</color>
+    <color name="md_on_surface">#EBF4F1</color>
+    <color name="md_surface_variant">#3B4D53</color>
+    <color name="md_on_surface_variant">#A4B7B5</color>
+    <color name="md_outline">#849996</color>
+    <color name="md_outline_variant">#3B4D53</color>
+    <color name="md_surface_container_lowest">#0B151A</color>
+    <color name="md_surface_container_low">#16242A</color>
+    <color name="md_surface_container">#1A2A31</color>
+    <color name="md_surface_container_high">#223239</color>
+    <color name="md_surface_container_highest">#2A3A41</color>
+    <color name="md_inverse_surface">#EBF4F1</color>
+    <color name="md_inverse_on_surface">#1D2D34</color>
+    <color name="md_inverse_primary">#137A64</color>
+
+    <color name="hero_background">#0F2B2E</color>
+    <color name="hero_on">#FFFFFF</color>
+    <color name="hero_muted">#A9C7C2</color>
+    <color name="hero_accent">#8DE0C6</color>
+    <color name="hero_button">#1F8A70</color>
+    <color name="hero_button_soft">#1D4346</color>
+
+    <color name="status_pending_bg">#4A3A14</color>
+    <color name="status_pending_fg">#FFDEA6</color>
+    <color name="status_ready_bg">#0F4A3D</color>
+    <color name="status_ready_fg">#B9EFE0</color>
+    <color name="status_error_bg">#5C1A16</color>
+    <color name="status_error_fg">#FFDAD6</color>
+    <color name="status_neutral_bg">#2A3A41</color>
+    <color name="status_neutral_fg">#C3D0CD</color>
+    <color name="due_overdue">#FFB4AB</color>
+    <color name="due_today">#FFBB4D</color>
+    <color name="speaker_a_bg">#16302C</color>
+    <color name="speaker_b_bg">#2A2E26</color>
+    <color name="speaker_c_bg">#262A38</color>
+</resources>

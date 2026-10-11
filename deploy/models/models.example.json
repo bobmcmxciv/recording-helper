@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "note": "Human-readable inventory for people installing models. The app downloads each file from its URL and verifies the sha256 the user enters.",
+  "base": "https://your-domain.example/recording-models/",
+  "files": [
+    { "slot": "sv.tflite", "name": "SenseVoice-Small TFLite", "url": "https://your-domain.example/recording-models/sv.tflite", "size": 0, "sha256": "REPLACE_WITH_SHA256", "license": "see docs/MODELS.md" },
+    { "slot": "tokens.json", "name": "SenseVoice tokens", "url": "https://your-domain.example/recording-models/tokens.json", "size": 0, "sha256": "REPLACE_WITH_SHA256" },
+    { "slot": "am.mvn", "name": "SenseVoice CMVN", "url": "https://your-domain.example/recording-models/am.mvn", "size": 0, "sha256": "REPLACE_WITH_SHA256" },
+    { "slot": "spk.tflite", "name": "CAM++ speaker model (optional)", "url": "https://your-domain.example/recording-models/spk.tflite", "size": 0, "sha256": "REPLACE_WITH_SHA256" },
+    { "slot": "model.gguf", "name": "Qwen3.5-4B Q4_0 GGUF (optional)", "url": "https://your-domain.example/recording-models/Qwen3.5-4B-Q4_0.gguf", "size": 0, "sha256": "REPLACE_WITH_SHA256", "license": "Apache-2.0" }
+  ]
+}

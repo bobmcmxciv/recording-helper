@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#173D40">
+<meta name="referrer" content="no-referrer">
+<title>录音助手 · 工作空间</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="app.css">
+<script src="dates.js" defer></script>
+<script src="app.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">跳到主要内容</a>
+
+<header class="topbar" id="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <img src="icon.svg" alt="" width="30" height="30">
+      <span>录音助手<span class="brand-sep">·</span>工作空间</span>
+    </div>
+    <span id="status" class="pill" data-state="idle" role="status" aria-live="polite"><span class="dot" aria-hidden="true"></span><span id="status-text">未连接</span></span>
+    <span class="spacer"></span>
+    <form id="connect-form" class="connect" autocomplete="off">
+      <label class="sr-only" for="token">工作空间密钥</label>
+      <input id="token" class="field field-hero" type="password" placeholder="输入工作空间密钥" autocomplete="off" spellcheck="false" required>
+      <label class="remember"><input id="remember" type="checkbox">在此浏览器记住密钥</label>
+      <button class="btn btn-hero" type="submit">连接</button>
+    </form>
+    <div id="session" class="session" hidden>
+      <span id="last-sync" class="last-sync">尚未同步</span>
+      <button id="refresh" class="btn btn-hero-ghost" type="button">刷新</button>
+      <button id="disconnect" class="btn btn-hero-ghost" type="button">断开</button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <section id="welcome" class="welcome" aria-labelledby="welcome-title">
+    <div class="welcome-card">
+      <p class="eyebrow">个人工作空间</p>
+      <h1 id="welcome-title">一个人，多台设备，<br>重要的事放在一起。</h1>
+      <p class="lead">手机在本机完成转写与整理，只把文字、纪要和待办同步到这里。音频始终留在手机上。</p>
+      <ul class="facts">
+        <li><strong>只同步文字</strong><span>转写、纪要与待办，不接收音频文件。</span></li>
+        <li><strong>多设备共享</strong><span>使用同一密钥的设备共享全部内容。</span></li>
+        <li><strong>离线优先</strong><span>手机离线照常工作，联网后自动合并。</span></li>
+      </ul>
+      <p class="hint">在页面顶部输入部署时设置的工作空间密钥即可连接。默认只在当前标签页保留密钥；勾选“在此浏览器记住密钥”后会保存在本浏览器中。</p>
+    </div>
+  </section>
+
+  <div id="workspace" hidden>
+    <section class="stats" id="stats" aria-label="概览">
+      <button class="stat" type="button" id="stat-open" data-goto="todo-col"><span class="stat-num" id="num-open">0</span><span class="stat-label">待推进</span><span class="stat-hint" id="hint-open"></span></button>
+      <button class="stat" type="button" id="stat-today" data-goto="sec-today"><span class="stat-num" id="num-today">0</span><span class="stat-label">今日必办</span><span class="stat-hint" id="hint-today"></span></button>
+      <button class="stat" type="button" id="stat-review" data-goto="sec-review"><span class="stat-num" id="num-review">0</span><span class="stat-label">待核对</span><span class="stat-hint" id="hint-review"></span></button>
+      <button class="stat" type="button" id="stat-recs" data-goto="rec-col"><span class="stat-num" id="num-recs">0</span><span class="stat-label">录音</span><span class="stat-hint" id="hint-recs"></span></button>
+      <button class="stat" type="button" id="stat-devices" aria-expanded="false" aria-controls="device-pop"><span class="stat-num" id="num-devices">0</span><span class="stat-label">设备</span><span class="stat-hint" id="hint-devices"></span></button>
+      <div id="device-pop" class="popover" role="dialog" aria-label="已同步的设备" hidden></div>
+    </section>
+
+    <div class="switcher-wrap" id="switcher-wrap">
+      <div class="switcher" role="group" aria-label="切换视图">
+        <button type="button" data-view="todos" aria-pressed="true">待办 <span class="count" id="sw-todos">0</span></button>
+        <button type="button" data-view="recordings" aria-pressed="false">录音 <span class="count" id="sw-recs">0</span></button>
+      </div>
+    </div>
+
+    <div class="board" id="board" data-view="todos">
+      <section class="col" id="todo-col" aria-labelledby="todo-heading">
+        <div class="col-head">
+          <h2 id="todo-heading">待办</h2>
+          <span class="count" id="todo-count">0</span>
+        </div>
+        <form id="new-todo" class="new-todo" autocomplete="off">
+          <label class="sr-only" for="new-title">新建待办</label>
+          <input id="new-title" class="field" placeholder="＋ 新建待办" maxlength="500" required>
+          <label class="sr-only" for="new-due">期限（可选）</label>
+          <input id="new-due" class="field" placeholder="期限（可选）" title="例如 2026-10-12、10月12日、明天" maxlength="40">
+          <button class="btn btn-primary" type="submit">添加</button>
+        </form>
+        <div id="todo-list" class="todo-list" aria-busy="false"></div>
+      </section>
+
+      <section class="col" id="rec-col" aria-labelledby="rec-heading">
+        <div class="col-head">
+          <h2 id="rec-heading">录音</h2>
+          <span class="count" id="rec-count">0</span>
+        </div>
+        <div class="search">
+          <label class="sr-only" for="search">搜索录音</label>
+          <input id="search" class="field" type="search" placeholder="搜索标题、原文、纪要" autocomplete="off">
+          <kbd aria-hidden="true">/</kbd>
+        </div>
+        <div class="filters" role="group" aria-label="按状态筛选">
+          <button type="button" class="filter" data-filter="all" aria-pressed="true">全部 <span>0</span></button>
+          <button type="button" class="filter" data-filter="pending" aria-pressed="false">待整理 <span>0</span></button>
+          <button type="button" class="filter" data-filter="ready" aria-pressed="false">已生成 <span>0</span></button>
+          <button type="button" class="filter" data-filter="error" aria-pressed="false">失败 <span>0</span></button>
+          <button type="button" class="filter" data-filter="silent" aria-pressed="false">未识别 <span>0</span></button>
+        </div>
+        <div id="rec-list" class="rec-list" aria-busy="false"></div>
+      </section>
+
+      <aside id="detail" class="detail" aria-label="录音详情">
+        <div id="detail-empty" class="detail-empty">
+          <img src="icon.svg" alt="" width="48" height="48">
+          <p class="empty-title">选择一条录音</p>
+          <p>在这里查看纪要、关联待办、带说话人的原文和润色稿。</p>
+        </div>
+        <div id="detail-body" class="detail-body" hidden>
+          <div class="detail-head">
+            <div class="detail-top">
+              <div class="detail-meta" id="detail-meta"></div>
+              <button id="detail-close" class="btn btn-ghost btn-sm" type="button">关闭</button>
+            </div>
+            <h2 id="detail-title" class="detail-title" tabindex="-1"></h2>
+            <div class="detail-actions">
+              <button id="copy-text" class="btn btn-ghost btn-sm" type="button">复制原文</button>
+              <button id="copy-summary" class="btn btn-ghost btn-sm" type="button">复制纪要</button>
+            </div>
+          </div>
+          <div class="tabs" role="tablist" aria-label="录音内容">
+            <button type="button" role="tab" id="tab-summary" data-tab="summary" aria-controls="detail-panel" aria-selected="true">纪要</button>
+            <button type="button" role="tab" id="tab-todos" data-tab="todos" aria-controls="detail-panel" aria-selected="false" tabindex="-1">待办 <span class="count" id="tab-todo-count">0</span></button>
+            <button type="button" role="tab" id="tab-text" data-tab="text" aria-controls="detail-panel" aria-selected="false" tabindex="-1">原文</button>
+            <button type="button" role="tab" id="tab-polished" data-tab="polished" aria-controls="detail-panel" aria-selected="false" tabindex="-1">润色稿</button>
+          </div>
+          <div id="detail-panel" class="tab-panel" role="tabpanel" aria-labelledby="tab-summary" tabindex="0"></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</main>
+
+<div id="backdrop" class="backdrop" hidden></div>
+<div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+</body>
+</html>

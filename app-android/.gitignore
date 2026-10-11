@@ -1,0 +1,12 @@
+# build output, logs, local machine files and secrets stay out of the repo
+build/
+app/build/
+.gradle/
+.kotlin/
+build-log*.txt
+hs_err_pid*
+replay_pid*
+local.properties
+key.properties
+*.keystore
+*.jks

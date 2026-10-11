@@ -1,0 +1,19 @@
+# Example Caddy site: automatic HTTPS, the hub under /recording-helper/ and model files under /recording-models/.
+your-domain.example {
+	encode zstd gzip
+
+	redir /recording-helper /recording-helper/ 308
+	handle_path /recording-helper/* {
+		request_body {
+			max_size 11MB
+		}
+		reverse_proxy 127.0.0.1:8788
+	}
+
+	# Static model files (directory listing stays off unless "browse" is added).
+	handle_path /recording-models/* {
+		root * /srv/recording-models
+		header Cache-Control "public, max-age=86400"
+		file_server
+	}
+}

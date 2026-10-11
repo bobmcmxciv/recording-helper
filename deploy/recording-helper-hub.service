@@ -1,0 +1,45 @@
+# systemd unit for running the hub without containers.
+# Setup example:
+#   sudo useradd --system --home /var/lib/recording-helper --shell /usr/sbin/nologin rh-hub
+#   sudo cp -r server /opt/recording-helper/server
+#   sudo install -d -m 0750 /etc/recording-helper
+#   sudo sh -c 'echo "RH_TOKEN=<random secret, at least 24 characters>" > /etc/recording-helper/hub.env'
+#   sudo chmod 0640 /etc/recording-helper/hub.env && sudo chgrp rh-hub /etc/recording-helper/hub.env
+#   sudo cp deploy/recording-helper-hub.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now recording-helper-hub
+[Unit]
+Description=Recording Helper sync hub
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=rh-hub
+Group=rh-hub
+WorkingDirectory=/opt/recording-helper
+EnvironmentFile=/etc/recording-helper/hub.env
+Environment=HOST=127.0.0.1
+Environment=PORT=8788
+Environment=RH_DATA_DIR=/var/lib/recording-helper
+ExecStart=/usr/bin/node server/index.js
+Restart=on-failure
+RestartSec=5
+StateDirectory=recording-helper
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target

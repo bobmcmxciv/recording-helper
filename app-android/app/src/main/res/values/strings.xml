@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">录音助手</string>
+    <string name="settings">设置</string>
+    <string name="tab_home">概览</string>
+    <string name="tab_library">录音</string>
+    <string name="tab_todos">待办</string>
+    <string name="tab_me">我的</string>
+    <string name="action_import">导入录音</string>
+    <string name="action_record">开始录音</string>
+    <string name="action_new_todo">新建待办</string>
+    <string name="action_back">返回</string>
+    <string name="hint_search_recordings">搜索标题或内容</string>
+    <string name="empty_recordings_title">还没有录音记录</string>
+    <string name="empty_recordings_body">导入一段录音、在应用内录音，或把系统录音机的文件分享到录音助手。</string>
+    <string name="empty_todos_title">暂时没有待办</string>
+    <string name="empty_todos_body">整理录音后，明确的行动项会出现在这里。也可以手动添加。</string>
+</resources>

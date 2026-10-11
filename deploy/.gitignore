@@ -1,0 +1,2 @@
+# local secrets for docker compose
+.env

@@ -1,0 +1,6 @@
+# runtime data and keys never belong in the repository
+data/
+*.db
+*.db-shm
+*.db-wal
+*.key

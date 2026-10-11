@@ -1,0 +1,27 @@
+# Usage (from this directory):
+#   echo "RH_TOKEN=$(node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))")" > .env
+#   docker compose up -d --build
+# The hub is reachable only on 127.0.0.1:8788; put an HTTPS reverse proxy in front of it.
+services:
+  hub:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: recording-helper-hub:2.0.0
+    restart: unless-stopped
+    environment:
+      RH_TOKEN: ${RH_TOKEN:?set RH_TOKEN in deploy/.env}
+    ports:
+      - "127.0.0.1:8788:8788"
+    volumes:
+      - hub-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  hub-data:

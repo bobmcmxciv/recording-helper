@@ -1,0 +1,44 @@
+# Build outputs
+**/build/
+**/.gradle/
+**/.kotlin/
+**/out/
+**/obj/
+*.apk
+*.aab
+*.mdmp
+hs_err_*
+replay_*
+
+# Local machine configuration and secrets
+**/local.properties
+**/key.properties
+**/*.keystore
+**/*.jks
+**/.env
+**/.env.*
+secrets/
+
+# Runtime data
+server/data/
+deploy/data/
+demo-data/
+*.db
+*.db-wal
+*.db-shm
+*.log
+
+# Model weights are never committed
+*.gguf
+*.tflite
+*.onnx
+*.pt
+*.bin
+
+# Working files
+_build/
+node_modules/
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db

@@ -1,0 +1,16 @@
+{
+  "name": "recording-helper-hub",
+  "version": "2.0.0",
+  "description": "Self-hosted text sync hub and web board for Recording Helper",
+  "private": true,
+  "license": "Apache-2.0",
+  "main": "index.js",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "test": "node --test test/*.test.js",
+    "seed-demo": "node tools/seed-demo.js"
+  }
+}
