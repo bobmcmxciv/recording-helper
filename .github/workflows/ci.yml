@@ -23,13 +23,11 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - uses: android-actions/setup-android@v3
+      # ubuntu-latest ships the Android SDK; AGP downloads any missing platform or build-tools.
       - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: 8.10.2
       - name: Unit tests and debug APK
         working-directory: app-android
-        run: gradle testStandardDebugUnitTest assembleStandardDebug --no-daemon
+        run: ./gradlew testStandardDebugUnitTest assembleStandardDebug --no-daemon
       - uses: actions/upload-artifact@v4
         with:
           name: recording-helper-debug-apk
