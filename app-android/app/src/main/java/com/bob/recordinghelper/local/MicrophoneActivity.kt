@@ -38,7 +38,7 @@ class MicrophoneActivity : AppCompatActivity() {
         b = ActivityMicrophoneBinding.inflate(layoutInflater)
         setContentView(b.root)
         Ui.insets(b.root, top = b.appbar, bottom = b.body)
-        Ui.column(b.scroll, 720); Ui.column(b.panel, 720)
+        if (b.body.orientation == android.widget.LinearLayout.HORIZONTAL) Ui.column(b.body, 1440) else { Ui.column(b.scroll, 720); Ui.column(b.panel, 720) }
         Ui.tabletop(this) { hinge -> b.body.post { fold(hinge) } }
         b.toolbar.setNavigationOnClickListener { finish() }
         b.btnStart.setOnClickListener { requestCapture("record", "") }
@@ -55,6 +55,7 @@ class MicrophoneActivity : AppCompatActivity() {
 
     /** Half-opened on a table: transcript above the hinge, controls below it. Flat: controls on top, transcript scrolls under them. */
     private fun fold(hinge: android.graphics.Rect?) {
+        if (b.body.orientation == android.widget.LinearLayout.HORIZONTAL) return  // landscape panes sit side by side; no tabletop split
         val body = b.body; val scroll = b.scroll; val panel = b.panel
         val tabletop = hinge != null
         if (tabletop != (body.indexOfChild(scroll) == 0)) { body.removeView(panel); body.addView(panel, if (tabletop) 1 else 0) }

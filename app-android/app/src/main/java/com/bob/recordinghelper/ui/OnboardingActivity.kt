@@ -53,8 +53,9 @@ class OnboardingActivity : AppCompatActivity() {
         enableEdgeToEdge()
         b = ActivityOnboardingBinding.inflate(layoutInflater)
         setContentView(b.root)
-        Ui.insets(b.root, top = b.toolbar, bottom = b.footer)
-        Ui.column(b.scroll, 640); Ui.column(b.footer, 640)
+        val panes = b.root.findViewById<View>(R.id.panes)
+        Ui.insets(b.root, top = b.toolbar, bottom = panes ?: b.footer)
+        if (panes != null) Ui.column(panes, 1440) else { Ui.column(b.scroll, 640); Ui.column(b.footer, 640) }
         b.toolbar.setNavigationOnClickListener { exitDialog() }
         step = (savedInstanceState?.getInt("step") ?: Onboarding.step(this)).coerceIn(1, 6).let { if (it == 0) 1 else it }
         if (step == 0) step = 1

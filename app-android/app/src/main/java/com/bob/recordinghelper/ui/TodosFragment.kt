@@ -71,11 +71,11 @@ class TodosFragment : TabFragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        val columns = Ui.gridColumns(requireContext())
+        val columns = if (Ui.sidePane(b.root)) 1 else Ui.gridColumns(requireContext())
         b.list.layoutManager = if (columns > 1) androidx.recyclerview.widget.GridLayoutManager(requireContext(), columns).apply {
             spanSizeLookup = object : androidx.recyclerview.widget.GridLayoutManager.SpanSizeLookup() { override fun getSpanSize(position: Int) = if (adapter.getItemViewType(position) == 1) 1 else columns }
         } else LinearLayoutManager(requireContext())
-        Ui.column(b.root, Ui.gridMaxDp(requireContext()))
+        Ui.column(b.root, if (Ui.sidePane(b.root)) 1440 else Ui.gridMaxDp(requireContext()))
         b.list.adapter = adapter
         b.list.itemAnimator = null
         b.fab.setOnClickListener { TodoEditSheet.newInstance(null).show(childFragmentManager, "todo") }

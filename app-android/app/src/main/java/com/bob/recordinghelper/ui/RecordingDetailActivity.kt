@@ -37,6 +37,7 @@ class RecordingDetailActivity : AppCompatActivity() {
     private var todos: List<JSONObject> = emptyList()
     private var audio: String? = null
     private var player: MediaPlayer? = null
+    private var transcriptPane: android.widget.TextView? = null
     private val handler = Handler(Looper.getMainLooper())
     private val ticker = object : Runnable { override fun run() { tick(); handler.postDelayed(this, 500) } }
 
@@ -45,8 +46,11 @@ class RecordingDetailActivity : AppCompatActivity() {
         enableEdgeToEdge()
         b = ActivityRecordingDetailBinding.inflate(layoutInflater)
         setContentView(b.root)
-        Ui.insets(b.root, top = b.appbar, bottom = b.scroll)
-        Ui.column(b.scroll, 720)
+        val panes = b.root.findViewById<View>(R.id.panes)
+        Ui.insets(b.root, top = b.appbar, bottom = panes ?: b.scroll)
+        if (panes != null) Ui.column(panes, 1440) else Ui.column(b.scroll, 720)
+        transcriptPane = b.root.findViewById(R.id.tvTranscript)
+        if (transcriptPane != null) b.secText.visibility = View.GONE  // landscape: the transcript has its own pane
         b.toolbar.setNavigationOnClickListener { finish() }
         b.toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
@@ -95,6 +99,7 @@ class RecordingDetailActivity : AppCompatActivity() {
         b.tvError.text = "处理提示：$error"
         val playable = audio?.let { it.startsWith("content://") || File(it).isFile } == true
         b.cardPlayer.visibility = if (playable) View.VISIBLE else View.GONE
+        transcriptPane?.text = transcript(r.optString("text"))
     }
 
     private fun render() {

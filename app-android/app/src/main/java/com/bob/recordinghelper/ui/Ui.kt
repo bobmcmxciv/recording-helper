@@ -50,6 +50,9 @@ object Ui {
     /** Widest content column for grid pages: wide windows get 1440dp, expanded 1080dp, the rest 720dp. */
     fun gridMaxDp(ctx: Context): Int = when (width(ctx)) { Width.WIDE -> 1440; Width.EXPANDED -> 1080; else -> 720 }
 
+    /** True when the landscape two-pane variant of a page is inflated (its side pane carries this id). */
+    fun sidePane(root: View): Boolean = root.findViewById<View>(R.id.sidePane) != null
+
     /** Dashboard pages (home, me) stay a 720dp reading column until the wide tier, where they split into two columns. */
     fun dashboardMaxDp(ctx: Context): Int = if (width(ctx) == Width.WIDE) 1440 else 720
 

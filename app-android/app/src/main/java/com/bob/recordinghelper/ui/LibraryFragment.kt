@@ -40,9 +40,9 @@ class LibraryFragment : TabFragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        val columns = Ui.gridColumns(requireContext())
+        val columns = if (Ui.sidePane(b.root)) 1 else Ui.gridColumns(requireContext())
         b.list.layoutManager = if (columns > 1) androidx.recyclerview.widget.GridLayoutManager(requireContext(), columns) else LinearLayoutManager(requireContext())
-        Ui.column(b.root, Ui.gridMaxDp(requireContext()))
+        Ui.column(b.root, if (Ui.sidePane(b.root)) 1440 else Ui.gridMaxDp(requireContext()))
         b.list.adapter = adapter
         b.swipe.setOnRefreshListener { refresh() }
         b.fab.setOnClickListener { importAudio.launch(Imports.AUDIO_TYPES) }

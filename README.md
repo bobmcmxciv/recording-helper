@@ -40,6 +40,7 @@
 - 上架到 Google Play、国内应用商店、App Store 与鸿蒙的前置条件见 [docs/PUBLISHING.md](docs/PUBLISHING.md)。
 - 扩展到英、日、韩、法、德、西、葡、阿等语言的转写模型选型与架构见 [docs/I18N.md](docs/I18N.md)。
 - 折叠屏、三折与平板的布局规则（宽度四档、侧栏导航、两列与三列看板、双栏仪表盘、桌面模式录音）见 [docs/FOLDABLE.md](docs/FOLDABLE.md)。
+- 手机横屏的两栏布局（控制在左、长内容在右，详情页原文常驻）见 [docs/LANDSCAPE.md](docs/LANDSCAPE.md)。
 
 已在 Redmi（HyperOS 16）与 OPPO Find X9 Pro（ColorOS 17）真机验证。HONOR / vivo 已内置候选录音路径，尚未真机验证；任何机型都可以通过授权实际目录使用。
 

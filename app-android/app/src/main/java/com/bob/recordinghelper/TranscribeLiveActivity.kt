@@ -37,8 +37,9 @@ class TranscribeLiveActivity : AppCompatActivity() {
         enableEdgeToEdge()
         b = ActivityLiveBinding.inflate(layoutInflater)
         setContentView(b.root)
-        Ui.insets(b.root, top = b.appbar, bottom = b.scroll)
-        Ui.column(b.scroll, 720)
+        val panes = b.root.findViewById<View>(R.id.panes)
+        Ui.insets(b.root, top = b.appbar, bottom = panes ?: b.scroll)
+        if (panes != null) Ui.column(panes, 1440) else Ui.column(b.scroll, 720)
         b.toolbar.setNavigationOnClickListener { finish() }
         // Follow the newest line only while the user is not holding or dragging the list and it already sits at the bottom.
         b.scroll.setOnScrollChangeListener { _, _, _, _, _ -> if (!touching) follow = atBottom() }

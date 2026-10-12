@@ -2,7 +2,6 @@
 <!-- Wide windows (1200dp and up): dashboard in two columns. Keep ids in sync with layout/fragment_home.xml. -->
 <androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/scroll"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:clipToPadding="false"
