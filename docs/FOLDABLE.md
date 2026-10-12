@@ -8,7 +8,8 @@
 | --- | --- | --- | --- | --- | --- |
 | 紧凑 Compact | < 600dp | 直板手机、小折叠外屏与内屏、大折叠外屏 | 底部导航栏 | 全宽 | 单列 |
 | 中等 Medium | 600 – 839dp | Mate X5 内屏（约 800dp）、分屏中的大折叠、竖持平板 | 左侧导航栏（Navigation Rail） | 居中，最宽 720dp（向导 640dp） | 单列 |
-| 扩展 Expanded | ≥ 840dp | Galaxy Z Fold 内屏（约 920dp）、Find N3（约 840dp）、三折全展开（1000dp 以上）、横持平板 | 左侧导航栏 | 居中，最宽 1080dp | 录音库与待办两列网格 |
+| 扩展 Expanded | 840 – 1199dp | Galaxy Z Fold 内屏（约 920dp）、Find N3（约 840dp）、竖持平板（约 970dp）、三折全展开 | 左侧导航栏 | 居中，最宽 1080dp | 录音库与待办两列网格 |
+| 超宽 Wide | ≥ 1200dp | 横持平板（约 1460dp）、横持大折叠、桌面窗口 | 左侧导航栏 | 居中，最宽 1440dp | 概览与我的改为双栏仪表盘；录音库与待办三列网格 |
 
 宽度来自 `Configuration.screenWidthDp`，折叠、展开、旋转、分屏都会重新计算，页面随之重建。
 
@@ -16,10 +17,10 @@
 
 | 页面 | 紧凑 | 中等 | 扩展 |
 | --- | --- | --- | --- |
-| 概览 | 单列卡片 | 居中 720dp | 居中 720dp |
-| 录音库 | 单列 | 居中 720dp | 两列卡片网格，搜索与筛选横跨全宽 |
-| 待办 | 单列 | 居中 720dp | 时段总结卡、筛选条与分组标题横跨两列，待办卡片两列；滑动与多选不变 |
-| 我的 | 单列 | 居中 720dp | 居中 720dp |
+| 概览 | 单列卡片 | 居中 720dp | 居中 720dp；超宽时左栏（待办概况、三步设置、自动转写）与右栏（今日必办、最近录音、快捷操作）并排 |
+| 录音库 | 单列 | 居中 720dp | 两列卡片网格，超宽三列；搜索与筛选横跨全宽 |
+| 待办 | 单列 | 居中 720dp | 时段总结卡、筛选条与分组标题横跨所有列，待办卡片两列、超宽三列；滑动与多选不变 |
+| 我的 | 单列 | 居中 720dp | 居中 720dp；超宽时左栏（本地模式、模型状态）与右栏（工具、关于）并排 |
 | 首次向导 | 全宽 | 内容与底部按钮居中 640dp | 同中等 |
 | 录音详情 / 设置 / AI 整理方式 / 声纹库 | 全宽 | 居中 720dp | 居中 720dp |
 | 现场录音 | 控制面板固定在上方，实时文字在下方滚动 | 同紧凑，居中 720dp | 同中等 |
@@ -56,7 +57,8 @@
 | 机制 | 位置 |
 | --- | --- |
 | 导航栏切换 | `res/layout/activity_main.xml`（底部导航）与 `res/layout-w600dp/activity_main.xml`（侧栏），两者绑定为同一 `NavigationBarView` |
-| 宽度档位与限宽 | `ui/Ui.kt`：`Ui.width()`、`Ui.column(view, maxDp)`；侧栏的系统栏内边距由 `Ui.railInsets()` 处理 |
+| 超宽双栏 | `res/layout-w1200dp/fragment_home.xml`、`res/layout-w1200dp/fragment_me.xml`，与默认布局保持相同的视图 id |
+| 宽度档位与限宽 | `ui/Ui.kt`：`Ui.width()`、`Ui.gridColumns()`、`Ui.gridMaxDp()`、`Ui.dashboardMaxDp()`、`Ui.column(view, maxDp)`；侧栏的系统栏内边距由 `Ui.railInsets()` 处理 |
 | 两列网格 | `LibraryFragment`、`TodosFragment` 在扩展档位使用 `GridLayoutManager`，总结卡、筛选条、分组标题、空状态占满两列 |
 | 折叠姿态 | `Ui.tabletop()` 订阅 `WindowInfoTracker`；`MicrophoneActivity.fold()` 在桌面模式交换面板顺序并对齐铰链 |
 | 依赖 | `androidx.window:window:1.3.0` |
@@ -72,6 +74,8 @@
 adb shell wm size 1280x1280 && adb shell wm density 300
 # 扩展宽度（约 890dp）：侧栏 + 两列网格
 adb shell wm density 230
+# 超宽（约 1280dp）：双栏仪表盘 + 三列网格
+adb shell wm density 160
 # 恢复
 adb shell wm size reset && adb shell wm density reset
 ```

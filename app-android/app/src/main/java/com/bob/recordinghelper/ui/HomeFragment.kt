@@ -53,7 +53,7 @@ class HomeFragment : TabFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val ctx = requireContext()
-        Ui.column(b.root, 720)
+        Ui.column(b.root, Ui.dashboardMaxDp(ctx))
         b.btnRecord.setOnClickListener { startActivity(Intent(ctx, MicrophoneActivity::class.java)) }
         b.btnImport.setOnClickListener { importAudio.launch(Imports.AUDIO_TYPES) }
         b.btnSetup.setOnClickListener { startActivity(Intent(ctx, SettingsActivity::class.java)) }

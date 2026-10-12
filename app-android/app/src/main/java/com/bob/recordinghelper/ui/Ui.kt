@@ -37,12 +37,21 @@ object Ui {
 
 
     /** Material window width classes: compact phones, medium (unfolded small foldables, portrait tablets), expanded (large foldables, tablets). */
-    enum class Width { COMPACT, MEDIUM, EXPANDED }
+    enum class Width { COMPACT, MEDIUM, EXPANDED, WIDE }
 
     fun width(ctx: Context): Width {
         val w = ctx.resources.configuration.screenWidthDp
-        return if (w >= 840) Width.EXPANDED else if (w >= 600) Width.MEDIUM else Width.COMPACT
+        return if (w >= 1200) Width.WIDE else if (w >= 840) Width.EXPANDED else if (w >= 600) Width.MEDIUM else Width.COMPACT
     }
+
+    /** Card columns for the library and the board: one on phones, two from 840dp, three from 1200dp. */
+    fun gridColumns(ctx: Context): Int = when (width(ctx)) { Width.WIDE -> 3; Width.EXPANDED -> 2; else -> 1 }
+
+    /** Widest content column for grid pages: wide windows get 1440dp, expanded 1080dp, the rest 720dp. */
+    fun gridMaxDp(ctx: Context): Int = when (width(ctx)) { Width.WIDE -> 1440; Width.EXPANDED -> 1080; else -> 720 }
+
+    /** Dashboard pages (home, me) stay a 720dp reading column until the wide tier, where they split into two columns. */
+    fun dashboardMaxDp(ctx: Context): Int = if (width(ctx) == Width.WIDE) 1440 else 720
 
     /** Keeps a reading column on wide windows: width beyond [maxDp] becomes symmetric horizontal padding. */
     fun column(view: View, maxDp: Int = 640) {

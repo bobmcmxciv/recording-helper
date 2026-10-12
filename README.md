@@ -16,7 +16,7 @@
   <img src="docs/screenshots/ai.png" width="190" alt="在线 AI 风险告知" />
 </p>
 <p align="center">
-  <img src="docs/screenshots/wide.png" width="580" alt="扩展宽度：侧栏导航与两列待办" />
+  <img src="docs/screenshots/wide.png" width="580" alt="横持平板：侧栏导航与三列待办" />
 </p>
 
 ## 它做什么
@@ -39,7 +39,7 @@
 - 模型文件的来源、哈希与转换方法见 [docs/MODELS.md](docs/MODELS.md)。安装包不内置模型权重，向导会从 Release `models-v1` 的清单下载并校验。
 - 上架到 Google Play、国内应用商店、App Store 与鸿蒙的前置条件见 [docs/PUBLISHING.md](docs/PUBLISHING.md)。
 - 扩展到英、日、韩、法、德、西、葡、阿等语言的转写模型选型与架构见 [docs/I18N.md](docs/I18N.md)。
-- 折叠屏、三折与平板的布局规则（宽度三档、侧栏导航、两列看板、桌面模式录音）见 [docs/FOLDABLE.md](docs/FOLDABLE.md)。
+- 折叠屏、三折与平板的布局规则（宽度四档、侧栏导航、两列与三列看板、双栏仪表盘、桌面模式录音）见 [docs/FOLDABLE.md](docs/FOLDABLE.md)。
 
 已在 Redmi（HyperOS 16）与 OPPO Find X9 Pro（ColorOS 17）真机验证。HONOR / vivo 已内置候选录音路径，尚未真机验证；任何机型都可以通过授权实际目录使用。
 

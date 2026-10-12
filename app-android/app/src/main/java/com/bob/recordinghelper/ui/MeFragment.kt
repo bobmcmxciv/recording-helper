@@ -46,7 +46,7 @@ class MeFragment : TabFragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        Ui.column(b.root, 720)
+        Ui.column(b.root, Ui.dashboardMaxDp(requireContext()))
         b.btnSyncSettings.setOnClickListener { startActivity(SettingsActivity.intent(requireContext(), "sync")) }
         b.btnBoard.setOnClickListener {
             val base = Prefs.baseUrl(requireContext())

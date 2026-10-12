@@ -21,6 +21,15 @@ import java.time.ZoneOffset
 
 /** Create or edit one todo. Reports "changed" to the parent fragment manager when something was saved. */
 class TodoEditSheet : BottomSheetDialogFragment() {
+    /** Landscape tablets and unfolded foldables otherwise open the sheet half-collapsed with the buttons below the fold. */
+    override fun onStart() {
+        super.onStart()
+        (dialog as? com.google.android.material.bottomsheet.BottomSheetDialog)?.behavior?.apply {
+            skipCollapsed = true
+            state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED
+        }
+    }
+
     private var _b: SheetTodoEditBinding? = null
     private val b get() = _b!!
     private val id: String? get() = arguments?.getString("id")
