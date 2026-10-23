@@ -21,6 +21,7 @@ class Transcriber(
     private val speakers: SpeakerTracker? = null,
     private val library: Map<String, List<FloatArray>> = emptyMap(),
     private val onLive: (Live) -> Unit = {},
+    private val checkpoint: AsrCheckpoint? = null,
 ) {
 
     data class Segment(val start: Double, val end: Double, val text: String, val speaker: String = "")
@@ -59,12 +60,20 @@ class Transcriber(
             get() = if (speakerCount >= 2) speakerSegments.joinToString("\n") { "${it.speaker}：${it.text}" } else text
     }
 
-    private class Piece(val index: Int, val start: Long, val n: Int, val features: FloatArray?, val pcm: FloatArray?)
+    private class Piece(
+        val index: Int,
+        val start: Long,
+        val n: Int,
+        val features: FloatArray?,
+        val pcm: FloatArray?,
+        val cached: AsrCheckpoint.Entry? = null,
+    )
 
     private class Done(val index: Int, val start: Long, val n: Int, val ids: IntArray?)
 
     fun transcribe(file: File, onSegment: (Segment) -> Unit = {}): Result {
         val t0 = System.nanoTime()
+        val restored = checkpoint?.load().orEmpty()
         val queue = ArrayBlockingQueue<Piece>(QUEUE)
         val end = Piece(-1, -1, 0, null, null)
         val spkQueue = ArrayBlockingQueue<Piece>(SPK_QUEUE)
@@ -106,7 +115,10 @@ class Transcriber(
                     if (tracker != null) {
                         if (spkError == null) spkQueue.put(Piece(index, startSample, n, null, pcm))
                     }
-                    if (loudest100ms(pcm, n) < SILENCE_RMS) {
+                    val hit = restored[index]?.takeIf { it.start == startSample && it.n == n }
+                    if (hit != null) {
+                        queue.put(Piece(index, startSample, n, null, null, cached = hit))
+                    } else if (loudest100ms(pcm, n) < SILENCE_RMS) {
                         queue.put(Piece(index, startSample, n, null, null))
                     } else {
                         val f0 = System.nanoTime()
@@ -135,17 +147,29 @@ class Transcriber(
                 val p = queue.take()
                 if (p === end) break
                 var ms = 0L
-                val text = if (p.features == null) {
+                val cached = p.cached
+                val text: String
+                val ids: IntArray?
+                if (cached != null) {
+                    text = cached.text
+                    if (text.isEmpty()) silent++
+                    ids = if (tracker != null) cached.ids else null
+                } else if (p.features == null) {
                     silent++
-                    ""
+                    text = ""
+                    ids = null
+                    checkpoint?.save(AsrCheckpoint.Entry(p.index, p.start, p.n, "", null))
                 } else {
                     val m0 = System.nanoTime()
-                    model.runFlat(p.features).trim().also {
+                    text = model.runFlat(p.features).trim().also {
                         modelNs += System.nanoTime() - m0
                         ms = (System.nanoTime() - m0) / 1_000_000
                     }
+                    val rawIds = model.lastIds.copyOf()
+                    ids = if (tracker != null) rawIds else null
+                    checkpoint?.save(AsrCheckpoint.Entry(p.index, p.start, p.n, text, rawIds))
                 }
-                done.add(Done(p.index, p.start, p.n, if (p.features != null && tracker != null) model.lastIds.copyOf() else null))
+                done.add(Done(p.index, p.start, p.n, ids))
                 val seg = Segment(p.start / 16000.0, (p.start + p.n) / 16000.0, text)
                 segments.add(seg)
                 onSegment(seg)

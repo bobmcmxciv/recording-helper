@@ -78,4 +78,20 @@ class ScanLedgerTest {
         assertTrue(b.contains(key(1)) && b.contains(key(2)))
         assertFalse(b.contains("/storage/emulated/0/half|12" + key(2)))
     }
+
+    @Test
+    fun addAllMergesLegacyIntoExistingLedgerAndMatchesAcrossPathPrefixes() {
+        val f = File(tmp.root, "scan-ledger-v2.txt")
+        val a = ScanLedger(f) { emptyList() }
+        a.add(key(0))
+        val added = a.addAll(listOf(
+            key(0),
+            "/sdcard/MIUI/sound_recorder/app_rec/微信录音 叶洋洋 数字基建_20251209151332.aac|554512|1771235328000",
+        ))
+        assertEquals(1, added)
+        val b = ScanLedger(f) { emptyList() }
+        assertTrue(b.contains("/storage/emulated/0/MIUI/sound_recorder/app_rec/微信录音 叶洋洋 数字基建_20251209151332.aac|554512|1765264436000"))
+        assertTrue(b.contains("saf:primary:MIUI/sound_recorder/app_rec/微信录音 叶洋洋 数字基建_20251209151332.aac|554512|1765264436295"))
+        assertFalse(b.contains("/storage/emulated/0/MIUI/sound_recorder/app_rec/微信录音 叶洋洋 数字基建_20251209151332.aac|554513|1765264436000"))
+    }
 }

@@ -53,9 +53,10 @@ object LocalAsr {
             audio: File,
             onSegment: (Transcriber.Segment) -> Unit = {},
             onLive: (Transcriber.Live) -> Unit = {},
+            checkpoint: com.bob.recordinghelper.asr.AsrCheckpoint? = null,
         ): Outcome {
             val tracker = embedder?.let { SpeakerTracker(it) }
-            val r = Transcriber(frontend, model, tracker, library, onLive).transcribe(audio, onSegment)
+            val r = Transcriber(frontend, model, tracker, library, onLive, checkpoint).transcribe(audio, onSegment)
             return Outcome(r, model.engine, initPending).also { initPending = 0 }
         }
 

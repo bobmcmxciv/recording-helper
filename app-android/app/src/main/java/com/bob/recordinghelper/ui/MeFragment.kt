@@ -40,6 +40,28 @@ class MeFragment : TabFragment() {
         }
     }
 
+    private val importBackup = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            val ctx = requireContext().applicationContext
+            lifecycleScope.launch {
+                val result = withContext(Dispatchers.IO) { runCatching {
+                    val raw = ctx.contentResolver.openInputStream(uri)!!.bufferedReader().use { it.readText() }
+                    val summary = LocalStore.of(ctx).importBackup(raw)
+                    AutoImportSettings.requestScan(ctx, true)
+                    AnalysisWorker.schedule(ctx)
+                    summary
+                } }
+                if (result.isSuccess) {
+                    val s = result.getOrThrow()
+                    refresh()
+                    toast("已恢复 ${s.recordingsImported} 条录音、${s.todosImported} 条待办（已跳过 ${s.todosSkippedOrDone} 条已处理待办）")
+                } else {
+                    toast("导入失败：${result.exceptionOrNull()?.message}")
+                }
+            }
+        }
+    }
+
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _b = FragmentMeBinding.inflate(inflater, container, false)
         return b.root
@@ -106,6 +128,9 @@ class MeFragment : TabFragment() {
         }
         row(b.listTools, R.drawable.ic_visibility, "转写与推理过程", liveDesc) { startActivity(Intent(ctx, TranscribeLiveActivity::class.java)) }
         row(b.listTools, R.drawable.ic_download, "导出数据", "转写、纪要和待办（JSON）") { export.launch("recording-helper-backup.json") }
+        row(b.listTools, R.drawable.ic_folder, "导入 / 恢复数据", "从备份恢复转写与已处理待办，跳过重复项") {
+            importBackup.launch(arrayOf("application/json", "text/plain", "*/*"))
+        }
         row(b.listTools, R.drawable.ic_settings, "全部设置", "模型、录音来源、同步、系统") { startActivity(Intent(ctx, SettingsActivity::class.java)) }
         row(b.listTools, R.drawable.ic_arrow_forward, "首次设置向导", "重新走一遍模型、目录与范围设置") { com.bob.recordinghelper.local.Onboarding.reopen(ctx); startActivity(OnboardingActivity.intent(ctx)) }
 

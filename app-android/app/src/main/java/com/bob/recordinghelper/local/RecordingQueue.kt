@@ -64,11 +64,16 @@ class RecordingQueue internal constructor(ctx: Context, name: String = "recordin
     @Synchronized fun sourceFor(ctx: Context, recordingId: String): String? {
         val owner = LocalSettings.device(ctx)
         val primary = Environment.getExternalStorageDirectory().canonicalPath
+        val rec = LocalStore.of(ctx).get(recordingId)
+        val recSourceKey = rec?.optString("sourceKey").orEmpty()
+        val recTitle = rec?.optString("title").orEmpty()
+        val recBytes = rec?.optLong("audioBytes", 0L) ?: 0L
         val rows = mutableListOf<RecordingSource>()
         readableDatabase.rawQuery("SELECT source,key,title,bytes,modified FROM queue", null).use { c ->
             while (c.moveToNext()) {
                 val item = RecordingSource(c.getString(0), c.getString(1), c.getString(2), c.getLong(3), c.getLong(4))
-                if ("rec-" + LocalStore.hash("$owner:${item.key}") == recordingId) {
+                if ("rec-" + LocalStore.hash("$owner:${item.key}") == recordingId ||
+                    (recSourceKey.isNotBlank() && item.key == recSourceKey)) {
                     return RecordingSources.resolveLocalFile(item)?.path ?: item.source
                 }
                 rows.add(item)
@@ -76,8 +81,14 @@ class RecordingQueue internal constructor(ctx: Context, name: String = "recordin
         }
         for (item in rows) {
             val path = item.key.removeSuffix("|${item.bytes}|${item.modified}")
-            if (RecordingSources.allAliases(path, item.bytes, item.modified, primary).any { "rec-" + LocalStore.hash("$owner:$it") == recordingId }) {
+            val aliases = RecordingSources.allAliases(path, item.bytes, item.modified, primary)
+            if (aliases.any { "rec-" + LocalStore.hash("$owner:$it") == recordingId || (recSourceKey.isNotBlank() && it == recSourceKey) }) {
                 return RecordingSources.resolveLocalFile(item)?.path ?: item.source
+            }
+        }
+        if (recTitle.isNotBlank()) {
+            rows.firstOrNull { it.title == recTitle && (recBytes <= 0L || it.bytes == recBytes) }?.let {
+                return RecordingSources.resolveLocalFile(it)?.path ?: it.source
             }
         }
         return null
@@ -87,9 +98,9 @@ class RecordingQueue internal constructor(ctx: Context, name: String = "recordin
     }
     /** Reconcile automatic queue entries after permission/source-mode changes so orphaned URIs do not fail in batches. */
     @Synchronized fun reconcileAutomatic(ctx: Context, eligible: List<RecordingSource>, inventoryComplete: Boolean) {
-        val savedIds = LocalStore.of(ctx).recordingIds()
         val owner = LocalSettings.device(ctx)
         val primary = Environment.getExternalStorageDirectory().canonicalPath
+        val savedLookup = LocalStore.of(ctx).savedLookup(primary, owner)
         val eligibleByKey = eligible.associateBy { it.key }
         val aliasToEligible = HashMap<String, RecordingSource>(eligible.size * 4)
         val identityToEligible = HashMap<String, RecordingSource>(eligible.size)
@@ -110,10 +121,7 @@ class RecordingQueue internal constructor(ctx: Context, name: String = "recordin
         val doneIdentities = HashSet<String>()
         val doneCanonicalKeys = HashSet<String>()
         for (r in rows) {
-            val path = r.item.key.removeSuffix("|${r.item.bytes}|${r.item.modified}")
-            val hasSaved = r.state == "done" || RecordingSources.allAliases(path, r.item.bytes, r.item.modified, primary).any {
-                ("rec-" + LocalStore.hash("$owner:$it")) in savedIds
-            }
+            val hasSaved = r.state == "done" || savedLookup.find(r.item) != null
             if (hasSaved) {
                 val idKey = "${r.item.title}|${r.item.bytes}"
                 doneIdentities.add(idKey)

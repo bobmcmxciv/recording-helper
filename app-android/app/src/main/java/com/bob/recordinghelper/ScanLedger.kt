@@ -16,21 +16,48 @@ import java.io.RandomAccessFile
 class ScanLedger(private val file: File, private val legacy: () -> List<String>) {
     private var keys: HashSet<String>? = null
     private val pathSize = HashSet<String>()
+    private val nameSize = HashSet<String>()
 
     @Synchronized
     fun contains(key: String): Boolean {
         val set = load()
         if (set.contains(key)) return true
         val ps = pathSizeOf(key) ?: return false
-        return hasRecordingTime(ps.substringBeforeLast('|')) && pathSize.contains(ps)
+        val path = ps.substringBeforeLast('|')
+        if (!hasRecordingTime(path)) return false
+        if (pathSize.contains(ps)) return true
+        val ns = nameSizeOf(key) ?: return false
+        return nameSize.contains(ns)
     }
 
     @Synchronized
     fun add(key: String) {
         if (key.isEmpty() || !load().add(key)) return
         pathSizeOf(key)?.let { pathSize.add(it) }
+        nameSizeOf(key)?.let { nameSize.add(it) }
         if ('\n' !in key) file.appendText(key + "\n")
     }
+
+    @Synchronized
+    fun addAll(entries: Iterable<String>): Int {
+        val set = load()
+        val added = ArrayList<String>()
+        for (raw in entries) {
+            val key = raw.trim()
+            if (key.isEmpty() || '\n' in key || !set.add(key)) continue
+            pathSizeOf(key)?.let { pathSize.add(it) }
+            nameSizeOf(key)?.let { nameSize.add(it) }
+            added.add(key)
+        }
+        if (added.isNotEmpty()) {
+            file.parentFile?.mkdirs()
+            file.appendText(added.joinToString("") { it + "\n" })
+        }
+        return added.size
+    }
+
+    @Synchronized
+    fun allKeys(): Set<String> = HashSet(load())
 
     @Synchronized
     fun size(): Int = load().size
@@ -51,7 +78,10 @@ class ScanLedger(private val file: File, private val legacy: () -> List<String>)
                 tmp.delete()
             }
         }
-        set.forEach { k -> pathSizeOf(k)?.let { pathSize.add(it) } }
+        set.forEach { k ->
+            pathSizeOf(k)?.let { pathSize.add(it) }
+            nameSizeOf(k)?.let { nameSize.add(it) }
+        }
         keys = set
         return set
     }
@@ -68,6 +98,16 @@ class ScanLedger(private val file: File, private val legacy: () -> List<String>)
         fun pathSizeOf(key: String): String? {
             val i = key.lastIndexOf('|')
             return if (i > 0 && key.lastIndexOf('|', i - 1) > 0) key.substring(0, i) else null
+        }
+
+        /** "filename|size" when the file name ends with the recording time (…_YYYYMMDDHHMMSS.ext). */
+        fun nameSizeOf(key: String): String? {
+            val ps = pathSizeOf(key) ?: return null
+            val path = ps.substringBeforeLast('|')
+            if (!hasRecordingTime(path)) return null
+            val name = path.substringAfterLast('/')
+            val size = ps.substringAfterLast('|')
+            return if (name.isNotEmpty() && size.isNotEmpty()) "$name|$size" else null
         }
 
         /** The file name ends with the recording time (…_YYYYMMDDHHMMSS.ext). */

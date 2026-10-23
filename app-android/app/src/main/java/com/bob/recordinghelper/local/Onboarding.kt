@@ -16,6 +16,7 @@ object Onboarding {
     /** Show the wizard only on a fresh install: nothing configured, no model, no records. */
     fun shouldShow(ctx: Context): Boolean {
         if (done(ctx)) return false
+        runCatching { StateMirror.hydrateIfNeeded(ctx) }
         val configured = Prefs.scanScope(ctx) != null || LocalAsr.modelReady(ctx) || LocalStore.of(ctx).all("recording").isNotEmpty()
         if (configured) { finish(ctx); return false }
         return true

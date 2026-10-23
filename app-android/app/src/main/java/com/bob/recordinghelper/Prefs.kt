@@ -97,18 +97,40 @@ object Prefs {
             .apply()
     }
 
-    // 已处理台账：path|size|mtime，防止扫描重复上传/重复本地转写。存 filesDir/scan-ledger.txt，不设上限；
-    // 旧版存在 SharedPreferences 的 "ledger"（只留 3000 条），第一次读时并进来，原键不删（降级回旧版仍可用）
+    // 已处理台账：path|size|mtime，防止扫描重复上传/重复本地转写。存 filesDir/scan-ledger-v2.txt，不设上限；
+    // 自动合并 1.x 的 filesDir/scan-ledger.txt、SharedPreferences("ledger") 与外部存活镜像，原键不删。
     @Volatile private var ledgerStore: ScanLedger? = null
 
     private fun ledger(ctx: Context): ScanLedger = ledgerStore ?: synchronized(this) {
         val app = ctx.applicationContext
-        ledgerStore ?: ScanLedger(File(app.filesDir, "scan-ledger-v2.txt")) { emptyList() }.also { ledgerStore = it }
+        ledgerStore ?: run {
+            val v1File = File(app.filesDir, "scan-ledger.txt")
+            val collectLegacy = {
+                val out = LinkedHashSet<String>()
+                out.addAll(legacyLedger(app))
+                if (v1File.isFile) runCatching { v1File.forEachLine { if (it.isNotBlank()) out.add(it.trim()) } }
+                out.addAll(com.bob.recordinghelper.local.StateMirror.readLedger(app))
+                out.toList()
+            }
+            val store = ScanLedger(File(app.filesDir, "scan-ledger-v2.txt"), collectLegacy)
+            if (!sp(app).getBoolean("ledgerV2MergedLegacy", false)) {
+                runCatching { store.addAll(collectLegacy()) }
+                sp(app).edit().putBoolean("ledgerV2MergedLegacy", true).apply()
+            }
+            store.also { ledgerStore = it }
+        }
     }
 
     fun ledgerContains(ctx: Context, key: String): Boolean = ledger(ctx).contains(key)
 
-    fun ledgerAdd(ctx: Context, key: String) = ledger(ctx).add(key)
+    fun ledgerAdd(ctx: Context, key: String) {
+        ledger(ctx).add(key)
+        com.bob.recordinghelper.local.StateMirror.appendLedger(ctx, key)
+    }
+
+    fun ledgerMergeAll(ctx: Context, entries: Iterable<String>): Int = ledger(ctx).addAll(entries)
+
+    fun ledgerAllKeys(ctx: Context): Set<String> = ledger(ctx).allKeys()
 
     // 本地转写连续失败次数（台账键 → 次数），到上限的文件不再重试
     fun asrFailures(ctx: Context, key: String): Int =

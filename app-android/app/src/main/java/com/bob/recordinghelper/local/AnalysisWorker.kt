@@ -293,6 +293,7 @@ class AnalysisWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, param
 
     override fun doWork(): Result {
         val ctx = applicationContext
+        StateMirror.hydrateIfNeeded(ctx)
         val now = inputData.getBoolean("now", false) || AnalysisState.isUrgent()
         isNow = now
         val db = LocalStore.of(ctx)
@@ -395,8 +396,10 @@ class AnalysisWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, param
 
     private fun pendingCandidates(ctx: Context, db: LocalStore): List<org.json.JSONObject> {
         val owner = LocalSettings.device(ctx)
+        val syncOn = LocalSettings.sync(ctx)
         val raw = db.all("recording").filter {
-            it.optString("status") in listOf("pending", "analyzing") && it.optString("ownerDevice") == owner
+            it.optString("status") in listOf("pending", "analyzing") &&
+                (!syncOn || it.optString("ownerDevice").isBlank() || it.optString("ownerDevice") == owner)
         }
         return AnalysisState.pollOrder(raw)
     }

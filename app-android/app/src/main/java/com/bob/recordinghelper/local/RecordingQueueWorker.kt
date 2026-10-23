@@ -13,11 +13,13 @@ class RecordingQueueWorker(ctx: Context, params: WorkerParameters) : Worker(ctx,
 
     override fun doWork(): Result {
         val ctx = applicationContext
+        StateMirror.hydrateIfNeeded(ctx)
         if (MicState.busy || VoiceRelationState.busy) return Result.success()
         val queue = RecordingQueue.of(ctx)
         if (queue.pending() == 0) return Result.success()
         if (!LocalAsr.modelReady(ctx)) { status("等待安装语音模型；录音来源已记入队列"); return Result.success() }
         var processed = 0
+        var progressed = false
         var engineUnavailable = false
         var yieldedToAnalysis = false
         currentWorker = this
@@ -33,6 +35,9 @@ class RecordingQueueWorker(ctx: Context, params: WorkerParameters) : Worker(ctx,
                 try { setForegroundAsync(if (android.os.Build.VERSION.SDK_INT >= 29)
                     ForegroundInfo(250, n, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC) else ForegroundInfo(250, n)).get() } catch (_: Exception) {}
                 val started = android.os.SystemClock.elapsedRealtime()
+                val primary = android.os.Environment.getExternalStorageDirectory().canonicalPath
+                val owner = LocalSettings.device(ctx)
+                val savedLookup = LocalStore.of(ctx).savedLookup(primary, owner)
                 PhoneAsrBatch(ctx).use { batch ->
                     while (!stoppedOrCancelled() && !MicState.busy && !VoiceRelationState.busy && processed < 50 && android.os.SystemClock.elapsedRealtime() - started < 480_000L) {
                         if (AnalysisState.isUrgent() && AnalysisWorker.canAnalyze(ctx)) {
@@ -42,8 +47,13 @@ class RecordingQueueWorker(ctx: Context, params: WorkerParameters) : Worker(ctx,
                         val item = queue.claim(Prefs.autoScan(ctx)) ?: break
                         var copy: File? = null
                         try {
-                            val existing = RecordingSources.savedRecording(ctx, item)
-                            if (existing != null) { queue.state(item.key, "done"); Prefs.ledgerAdd(ctx, item.key); processed++; continue }
+                            val existing = savedLookup.find(item) ?: RecordingSources.savedRecording(ctx, item)
+                            if (existing != null) {
+                                queue.state(item.key, "done")
+                                Prefs.ledgerAdd(ctx, item.key)
+                                progressed = true
+                                continue
+                            }
                             val localFile = RecordingSources.resolveLocalFile(item)
                             val audio = if (localFile != null) {
                                 localFile
@@ -84,6 +94,7 @@ class RecordingQueueWorker(ctx: Context, params: WorkerParameters) : Worker(ctx,
                                 else -> queue.failure(item.key, "转写未完成（${outcome.name}），原录音保留，可重试")
                             }
                             processed++
+                            progressed = true
                             if (outcome == PhoneAsrBatch.Outcome.UNAVAILABLE) { engineUnavailable = true; break }
                         } catch (_: InterruptedException) {
                             queue.recover()
@@ -100,6 +111,7 @@ class RecordingQueueWorker(ctx: Context, params: WorkerParameters) : Worker(ctx,
                                 queue.failure(item.key, msg)
                             }
                             processed++
+                            progressed = true
                         } finally { copy?.delete() }
                     }
                 }
@@ -114,7 +126,7 @@ class RecordingQueueWorker(ctx: Context, params: WorkerParameters) : Worker(ctx,
             if (Prefs.autoScan(ctx) && queue.next(true) != null) schedule(ctx, 5, append = true)
             return Result.success()
         }
-        if (!stoppedOrCancelled() && !engineUnavailable && queue.next(Prefs.autoScan(ctx)) != null && processed > 0) schedule(ctx, 1, append = true)
+        if (!stoppedOrCancelled() && !engineUnavailable && queue.next(Prefs.autoScan(ctx)) != null && (processed > 0 || progressed)) schedule(ctx, 1, append = true)
         if (queue.pending() == 0 && Prefs.autoScan(ctx)) AnalysisWorker.schedule(ctx)
         return Result.success()
     }

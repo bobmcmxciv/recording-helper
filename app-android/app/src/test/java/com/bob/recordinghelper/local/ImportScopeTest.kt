@@ -173,4 +173,154 @@ class ImportScopeTest {
         assertEquals("OPPO / OnePlus / realme", LocalSettings.currentBrand("OPPO", "OnePlus"))
         assertEquals("Samsung / 通用", LocalSettings.currentBrand("Google", "Pixel"))
     }
+
+    @Test fun savedLookupMatchesAcrossDeviceUuidsAndPathAliases() {
+        val recFromOldInstall = org.json.JSONObject()
+            .put("id", "rec-old-uuid-1")
+            .put("title", "周骞(18601724862)_20261021130737.mp3")
+            .put("text", "下周二前提交接口联调报告。")
+            .put("status", "pending")
+            .put("ownerDevice", "old-device-uuid")
+            .put("sourceKey", "/sdcard/MIUI/sound_recorder/call_rec/周骞(18601724862)_20261021130737.mp3|40960|1775800123456")
+            .put("audioBytes", 40960L)
+        val lookup = LocalStore.SavedLookup(
+            recordings = listOf(recFromOldInstall),
+            primaryPath = "/storage/emulated/0",
+            currentOwner = "brand-new-device-uuid",
+        )
+        // Scanned via canonical path with rounded MediaStore mtime under a brand new device UUID:
+        val itemCanonical = RecordingSource(
+            "/storage/emulated/0/MIUI/sound_recorder/call_rec/周骞(18601724862)_20261021130737.mp3",
+            "/storage/emulated/0/MIUI/sound_recorder/call_rec/周骞(18601724862)_20261021130737.mp3|40960|1775800123000",
+            "周骞(18601724862)_20261021130737.mp3",
+            40960L,
+            1775800123000L,
+        )
+        assertNotNull(lookup.find(itemCanonical))
+        // Scanned via SAF tree URI with different mtime:
+        val itemSaf = RecordingSource(
+            "content://com.android.externalstorage.documents/tree/primary%3AMIUI",
+            "saf:primary:MIUI/sound_recorder/call_rec/周骞(18601724862)_20261021130737.mp3|40960|1779999999000",
+            "周骞(18601724862)_20261021130737.mp3",
+            40960L,
+            1779999999000L,
+        )
+        assertNotNull(lookup.find(itemSaf))
+        // Unrelated untranscribed recording returns null:
+        val itemNew = RecordingSource(
+            "/storage/emulated/0/MIUI/sound_recorder/call_rec/李辉(18601729340)_20261023174117.mp3",
+            "/storage/emulated/0/MIUI/sound_recorder/call_rec/李辉(18601729340)_20261023174117.mp3|81920|1775800999000",
+            "李辉(18601729340)_20261023174117.mp3",
+            81920L,
+            1775800999000L,
+        )
+        assertNull(lookup.find(itemNew))
+    }
+
+    @Test fun backupMergeSkipsProcessedTodosAndPreservesInProgressTranscripts() {
+        val existingRec = org.json.JSONObject()
+            .put("id", "rec-local-1")
+            .put("title", "项目推进会_20261022103053.mp3")
+            .put("text", "这是原始版已经转出来的录音文字稿，正在等待整理。")
+            .put("summary", "")
+            .put("status", "pending")
+            .put("ownerDevice", "dev-1")
+        val doneTodo = org.json.JSONObject()
+            .put("id", "todo-local-done")
+            .put("recordingId", "rec-local-1")
+            .put("title", "周五前发送测试包给客户！")
+            .put("done", true)
+            .put("reviewed", true)
+            .put("deleted", false)
+        val backupJson = org.json.JSONObject()
+            .put("schema", 2)
+            .put("recordings", org.json.JSONArray()
+                .put(org.json.JSONObject()
+                    .put("id", "rec-old-1")
+                    .put("title", "项目推进会_20261022103053.mp3")
+                    .put("text", "这是原始版已经转出来的录音文字稿，正在等待整理。")
+                    .put("summary", "完成项目推进排期")
+                    .put("status", "ready"))
+                .put(org.json.JSONObject()
+                    .put("id", "rec-old-2")
+                    .put("title", "王锦荣_20261023152804.mp3")
+                    .put("text", "第二条已转写文字稿")
+                    .put("summary", "")
+                    .put("status", "pending")))
+            .put("todos", org.json.JSONArray()
+                // Same todo with slightly different punctuation but marked done=false in backup: must NOT revert doneTodo!
+                .put(org.json.JSONObject()
+                    .put("id", "todo-old-dup")
+                    .put("recordingId", "rec-old-1")
+                    .put("title", "周五前发送测试包给客户")
+                    .put("done", false)
+                    .put("reviewed", false))
+                // New unprocessed todo on second recording:
+                .put(org.json.JSONObject()
+                    .put("id", "todo-old-new")
+                    .put("recordingId", "rec-old-2")
+                    .put("title", "下周一核对预算表")
+                    .put("done", false)
+                    .put("reviewed", false))
+                // Todo whose ID is in todo-done-ids.txt:
+                .put(org.json.JSONObject()
+                    .put("id", "todo-from-done-list")
+                    .put("recordingId", "rec-old-2")
+                    .put("title", "已通过外部列表完成的待办")
+                    .put("done", false)))
+            .toString()
+
+        val res = LocalStore.mergeBackupObjects(
+            existingRecordings = listOf(existingRec),
+            existingTodos = listOf(doneTodo),
+            rawJson = backupJson,
+            defaultOwner = "dev-1",
+            doneTodoIds = setOf("todo-from-done-list"),
+        )
+        // Both existingRec (upgraded to ready with summary) and rec-old-2 (pending transcript) are written:
+        assertEquals(2, res.recordingsToWrite.size)
+        val upgraded = res.recordingsToWrite.first { it.getString("id") == "rec-local-1" }
+        assertEquals("ready", upgraded.getString("status"))
+        assertEquals("完成项目推进排期", upgraded.getString("summary"))
+        // Duplicate undone todo was skipped; new todo and pre-done todo were written:
+        assertEquals(2, res.todosToWrite.size)
+        assertTrue(res.todosToWrite.none { it.getString("id") == "todo-old-dup" })
+        val fromDoneList = res.todosToWrite.first { it.getString("id") == "todo-from-done-list" }
+        assertTrue(fromDoneList.getBoolean("done"))
+        assertTrue(fromDoneList.getBoolean("reviewed"))
+    }
+
+    @Test fun asrCheckpointSavesRestoresAndRecoversFromMirror() {
+        val dir = java.nio.file.Files.createTempDirectory("rh-ckpt-test").toFile()
+        try {
+            val localFile = java.io.File(dir, "local/part.jsonl")
+            val mirrorFile = java.io.File(dir, "mirror/part.jsonl")
+            val ckpt = com.bob.recordinghelper.asr.AsrCheckpoint(localFile, mirrorFile)
+            ckpt.save(com.bob.recordinghelper.asr.AsrCheckpoint.Entry(0, 0L, 160000, "第一段文字。", intArrayOf(1, 2, 3)))
+            ckpt.save(com.bob.recordinghelper.asr.AsrCheckpoint.Entry(1, 160000L, 160000, "第二段文字。", null))
+            // Append a torn line to simulate mid-write process kill:
+            localFile.appendText("{\"i\":2,\"s\":320000,\"t\":\"半截")
+
+            val loaded = ckpt.load()
+            assertEquals(2, loaded.size)
+            assertEquals("第一段文字。", loaded[0]?.text)
+            assertArrayEquals(intArrayOf(1, 2, 3), loaded[0]?.ids)
+            assertEquals("第二段文字。", loaded[1]?.text)
+
+            // Simulate APK reinstall wiping localFile while mirrorFile survives:
+            localFile.delete()
+            assertFalse(localFile.exists())
+            val recovered = com.bob.recordinghelper.asr.AsrCheckpoint(localFile, mirrorFile).load()
+            assertEquals(2, recovered.size)
+            assertEquals("第一段文字。", recovered[0]?.text)
+            assertEquals("第二段文字。", recovered[1]?.text)
+            assertTrue(localFile.exists())
+
+            ckpt.clear()
+            assertFalse(localFile.exists())
+            assertFalse(mirrorFile.exists())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
 }

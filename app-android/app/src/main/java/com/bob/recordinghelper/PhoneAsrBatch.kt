@@ -31,18 +31,35 @@ class PhoneAsrBatch(private val ctx: Context) : java.io.Closeable {
         f: File, key: String, title: String, occurredAt: String?,
         fileNo: Int = 1, files: Int = 1, status: (String) -> Unit,
     ): Outcome {
-        val saved = savedText(key)
         val local = com.bob.recordinghelper.local.LocalStore.of(ctx)
-        val localKey = com.bob.recordinghelper.local.LocalSettings.device(ctx) + ":" + key
-        if (local.get("rec-" + com.bob.recordinghelper.local.LocalStore.hash(localKey)) != null) return Outcome.SENT
-        if (saved.exists()) {
-            status("保存到本机")
-            val text = saved.readText()
-            local.transcript(localKey, title, text, occurredAt)
-            saved.delete()
-            com.bob.recordinghelper.local.AnalysisWorker.schedule(ctx)
+        val owner = com.bob.recordinghelper.local.LocalSettings.device(ctx)
+        val primary = android.os.Environment.getExternalStorageDirectory().canonicalPath
+        val localKey = "$owner:$key"
+        val bytes = f.length()
+        val modified = f.lastModified()
+        val sourceItem = com.bob.recordinghelper.local.RecordingSource(f.path, key, title, bytes, modified)
+        val existing = local.get("rec-" + com.bob.recordinghelper.local.LocalStore.hash(localKey))
+            ?: local.savedLookup(primary, owner).find(sourceItem)
+        if (existing != null) {
+            if (existing.optString("status") == "pending" &&
+                (!Prefs.autoScan(ctx) || com.bob.recordinghelper.local.RecordingQueue.of(ctx).pending() <= 1)) {
+                com.bob.recordinghelper.local.AnalysisWorker.schedule(ctx)
+            }
             return Outcome.SENT
         }
+        val saved = findSavedText(key, title, bytes, modified, primary)
+        if (saved != null && saved.exists()) {
+            status("恢复已有文字稿并保存到本机")
+            val text = saved.readText()
+            local.transcript(localKey, title, text, occurredAt, sourceKey = key, audioBytes = bytes)
+            saved.delete()
+            if (!Prefs.autoScan(ctx) || com.bob.recordinghelper.local.RecordingQueue.of(ctx).pending() <= 1) {
+                com.bob.recordinghelper.local.AnalysisWorker.schedule(ctx)
+            }
+            return Outcome.SENT
+        }
+        val checkpoint = partialCheckpoint(title, bytes, key)
+        val restoredPieces = checkpoint.load().size
         if (unavailableReason != null) return Outcome.UNAVAILABLE
         val t0 = System.currentTimeMillis()
         val s = session ?: try {
@@ -57,14 +74,19 @@ class PhoneAsrBatch(private val ctx: Context) : java.io.Closeable {
             return Outcome.UNAVAILABLE
         }
         LiveAsr.begin(title, fileNo, files, s.engine.name, s.speakersOn, s.libraryNames)
+        if (restoredPieces > 0) {
+            val resumeMsg = "已恢复前 $restoredPieces 段已转写文字稿，继续转写剩余片段…"
+            status(resumeMsg)
+            LiveAsr.phase(resumeMsg)
+        }
         val out = try {
-            s.transcribe(f, { seg -> status("已转 ${seg.end.toInt()} 秒") }, LiveAsr::on)
+            s.transcribe(f, { seg -> status("已转 ${seg.end.toInt()} 秒") }, LiveAsr::on, checkpoint)
         } catch (e: InterruptedException) {
-            LiveAsr.finish("已暂停：${f.name}")
+            LiveAsr.finish("已暂停：${f.name}（已保存分段进度，下次继续）")
             throw e
         } catch (t: Throwable) {
             if (t is InterruptedException || t.cause is InterruptedException) {
-                LiveAsr.finish("已暂停：${f.name}")
+                LiveAsr.finish("已暂停：${f.name}（已保存分段进度，下次继续）")
                 throw InterruptedException(t.message)
             }
             Prefs.setLastAsr(ctx, "转写失败（${f.name}）：${t.message?.take(80)}")
@@ -85,13 +107,15 @@ class PhoneAsrBatch(private val ctx: Context) : java.io.Closeable {
         Prefs.setLastAsr(ctx, line + "\n音频：" + com.bob.recordinghelper.asr.AudioDecoder.lastStats)
         LiveAsr.finish(line)
         if (r.text.isBlank()) {
-            val id = local.transcript(localKey, title, "（未识别到语音）", occurredAt)
+            val id = local.transcript(localKey, title, "（未识别到语音）", occurredAt, sourceKey = key, audioBytes = bytes)
             local.status(id, "silent")
+            checkpoint.clear()
             return Outcome.SILENT
         }
         // phone-asr：服务器把它当录音分析（文件名里的通话对方、通话/会议分类）；分出两人以上时是"名字：文字"逐行
         val upload = r.uploadText
-        local.transcript(localKey, title, upload, occurredAt)
+        local.transcript(localKey, title, upload, occurredAt, sourceKey = key, audioBytes = bytes)
+        checkpoint.clear()
         if (!Prefs.autoScan(ctx) || com.bob.recordinghelper.local.RecordingQueue.of(ctx).pending() <= 1) {
             com.bob.recordinghelper.local.AnalysisWorker.schedule(ctx)
         }
@@ -103,8 +127,26 @@ class PhoneAsrBatch(private val ctx: Context) : java.io.Closeable {
         session = null
     }
 
-    private fun savedText(key: String): File {
-        val hex = MessageDigest.getInstance("SHA-1").digest(key.toByteArray()).joinToString("") { "%02x".format(it) }
-        return File(ctx.filesDir, "asr-unsent/$hex.txt")
+    private fun sha1Hex(value: String): String =
+        MessageDigest.getInstance("SHA-1").digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
+
+    private fun savedText(key: String): File = File(ctx.filesDir, "asr-unsent/${sha1Hex(key)}.txt")
+
+    private fun findSavedText(key: String, title: String, bytes: Long, modified: Long, primary: String): File? {
+        val path = key.removeSuffix("|$bytes|$modified")
+        val candidates = buildList {
+            add(key)
+            addAll(com.bob.recordinghelper.local.RecordingSources.allAliases(path, bytes, modified, primary))
+            if (title.isNotBlank() && bytes > 0L) add("$title|$bytes")
+        }.distinct()
+        return candidates.map { savedText(it) }.firstOrNull { it.isFile && it.length() > 0L }
+    }
+
+    private fun partialCheckpoint(title: String, bytes: Long, key: String): com.bob.recordinghelper.asr.AsrCheckpoint {
+        val idKey = if (title.isNotBlank() && bytes > 0L) "$title|$bytes" else key
+        val fileName = "${sha1Hex(idKey)}.jsonl"
+        val localFile = File(ctx.filesDir, "asr-partial/$fileName")
+        val mirrorFile = com.bob.recordinghelper.local.StateMirror.partialFile(ctx, fileName)
+        return com.bob.recordinghelper.asr.AsrCheckpoint(localFile, mirrorFile)
     }
 }

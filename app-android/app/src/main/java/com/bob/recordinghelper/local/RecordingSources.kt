@@ -58,10 +58,9 @@ object RecordingSources {
         }
     }
     fun savedRecording(ctx: Context, item: RecordingSource): org.json.JSONObject? {
-        val path = item.key.removeSuffix("|${item.bytes}|${item.modified}")
-        val keys = allAliases(path, item.bytes, item.modified, Environment.getExternalStorageDirectory().canonicalPath)
+        val primary = Environment.getExternalStorageDirectory().canonicalPath
         val owner = LocalSettings.device(ctx)
-        return keys.firstNotNullOfOrNull { LocalStore.of(ctx).get("rec-" + LocalStore.hash("$owner:$it")) }
+        return LocalStore.of(ctx).savedLookup(primary, owner).find(item)
     }
     fun file(file: File): RecordingSource {
         val path = file.canonicalPath

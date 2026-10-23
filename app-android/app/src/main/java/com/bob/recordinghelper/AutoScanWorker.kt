@@ -9,6 +9,7 @@ import com.bob.recordinghelper.local.*
 class AutoScanWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params) {
     override fun doWork(): Result {
         val ctx = applicationContext
+        StateMirror.hydrateIfNeeded(ctx)
         if (!Prefs.autoScan(ctx) && !inputData.getBoolean("manual", false)) return Result.success()
         if (!AutoImportSettings.hasAccess(ctx)) {
             status("需要授权录音目录或文件访问权限；已保存的记录不受影响")
@@ -23,8 +24,22 @@ class AutoScanWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, param
         val now = System.currentTimeMillis()
         val cutoff = ScanWindow.cutoff(now, Prefs.scanDays(ctx), Prefs.scanSince(ctx))
         val eligible = inventory.files.filter { ScanWindow.eligible(it.modified, it.bytes, now, cutoff) }
+        val primary = android.os.Environment.getExternalStorageDirectory().canonicalPath
+        val owner = LocalSettings.device(ctx)
+        val savedLookup = LocalStore.of(ctx).savedLookup(primary, owner)
         val queue = RecordingQueue.of(ctx)
-        val fresh = eligible.filter { !Prefs.ledgerContains(ctx, it.key) }
+        val fresh = eligible.filter { item ->
+            val path = item.key.removeSuffix("|${item.bytes}|${item.modified}")
+            val inLedger = RecordingSources.allAliases(path, item.bytes, item.modified, primary).any { Prefs.ledgerContains(ctx, it) }
+            if (inLedger) {
+                false
+            } else if (savedLookup.find(item) != null) {
+                Prefs.ledgerAdd(ctx, item.key)
+                false
+            } else {
+                true
+            }
+        }
         val added = queue.addAll(fresh)
         queue.reconcileAutomatic(ctx, eligible, !inventory.truncated && inventory.errors == 0)
         status("发现 ${inventory.files.size} 条录音 · 范围内 ${eligible.size} 条 · 新入队 $added 条" +

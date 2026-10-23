@@ -68,6 +68,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        val app = applicationContext
+        Thread { runCatching { com.bob.recordinghelper.local.StateMirror.hydrateIfNeeded(app) } }.start()
         AutoImportSettings.requestScan(this)
         LiveAsr.addListener(modelListener)
         AnalysisState.addListener(modelListener)
