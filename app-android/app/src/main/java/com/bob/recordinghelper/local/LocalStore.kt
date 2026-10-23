@@ -26,6 +26,10 @@ class LocalStore private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "loca
     }
     @Synchronized fun get(id: String): JSONObject? = readableDatabase.rawQuery(
         "SELECT body FROM items WHERE id=?", arrayOf(id)).use { if (it.moveToFirst()) JSONObject(it.getString(0)) else null }
+    @Synchronized fun recordingIds(): Set<String> = readableDatabase.rawQuery(
+        "SELECT id FROM items WHERE kind='recording'", null).use { c ->
+        HashSet<String>(c.count).apply { while (c.moveToNext()) add(c.getString(0)) }
+    }
     @Synchronized fun put(kind: String, body: JSONObject) {
         val id = body.getString("id")
         writableDatabase.execSQL("INSERT INTO items(id,kind,body,version) VALUES(?,?,?,1) ON CONFLICT(id) DO UPDATE SET body=excluded.body, version=version+1, dirty=1",
@@ -44,19 +48,63 @@ class LocalStore private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "loca
             put("recording", it.put("status", status).put("error", error))
         }
     }
+    /** Reset any orphaned 'analyzing' status left behind by a killed or cancelled worker back to 'pending'. */
+    @Synchronized fun recoverAnalyzing(excludeId: String? = null) {
+        for (r in all("recording")) {
+            val id = r.optString("id")
+            if (id != excludeId && r.optString("status") == "analyzing" && r.optString("ownerDevice") == ownerDevice) {
+                put("recording", r.put("status", "pending").put("error", ""))
+            }
+        }
+    }
+    /** Re-queues recordings that only have rule-based quick extraction so a newly available LLM can deeply analyze them. */
+    @Synchronized fun requeueQuickExtracted(): Int {
+        var count = 0
+        for (r in all("recording")) {
+            if (r.optBoolean("quickExtracted") && r.optString("status") == "ready" && r.optString("ownerDevice") == ownerDevice) {
+                put("recording", r.put("status", "pending").put("error", ""))
+                count++
+            }
+        }
+        return count
+    }
     @Synchronized fun analyzed(id: String, polished: String, result: JSONObject) {
         val rec = get(id) ?: return
         val db = writableDatabase
         db.beginTransaction()
         try {
-            put("recording", rec.put("polished", polished).put("summary", result.getString("summary"))
-                .put("status", "ready").put("error", ""))
+            rec.put("polished", polished)
+                .put("summary", result.getString("summary"))
+                .put("status", "ready")
+                .put("error", "")
+                .put("analyzedAt", System.currentTimeMillis())
+                .put("quickExtracted", result.optBoolean("quickExtracted", false))
+            if (result.has("analysisTrace")) rec.put("analysisTrace", result.getString("analysisTrace"))
+            if (result.has("analysisModel")) rec.put("analysisModel", result.getString("analysisModel"))
+            if (result.has("analysisStats")) rec.put("analysisStats", result.getString("analysisStats"))
+            put("recording", rec)
+            val newTids = HashSet<String>()
             val todos = result.getJSONArray("todos")
             for (i in 0 until todos.length()) {
                 val t = todos.getJSONObject(i)
                 val tid = "todo-" + hash(id + "|" + t.getString("title"))
-                if (get(tid) == null) put("todo", t.put("id", tid).put("recordingId", id)
-                    .put("done", false).put("reviewed", false).put("createdAt", System.currentTimeMillis()))
+                newTids.add(tid)
+                val existing = get(tid)
+                if (existing == null || existing.optBoolean("deleted")) {
+                    put("todo", JSONObject(t.toString()).put("id", tid).put("recordingId", id)
+                        .put("done", false).put("reviewed", false).put("deleted", false).put("createdAt", System.currentTimeMillis()))
+                } else if (!existing.optBoolean("reviewed") && !existing.optBoolean("done")) {
+                    put("todo", existing
+                        .put("due", t.optString("due"))
+                        .put("category", t.optString("category"))
+                        .put("evidence", t.optString("evidence")))
+                }
+            }
+            for (old in todosFor(id)) {
+                val oldId = old.optString("id")
+                if (oldId !in newTids && !old.optBoolean("reviewed") && !old.optBoolean("done")) {
+                    put("todo", old.put("deleted", true))
+                }
             }
             db.setTransactionSuccessful()
         } finally { db.endTransaction() }

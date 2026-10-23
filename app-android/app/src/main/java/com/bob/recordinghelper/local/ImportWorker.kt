@@ -57,7 +57,14 @@ class ImportWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params)
                 val n = Progress.ongoing(ctx, "离线转写", title, 0, 0, true)
                 try { setForegroundAsync(if (android.os.Build.VERSION.SDK_INT >= 29)
                     ForegroundInfo(230, n, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC) else ForegroundInfo(230, n)).get() } catch (_: Exception) {}
-                when (batch.process(f, f.name, title, null) { Progress.notifyOngoing(ctx, "离线转写", "$title · $it", 0, 0) }) {
+                var lastNotify = 0L
+                when (batch.process(f, f.name, title, null) {
+                    val now = android.os.SystemClock.elapsedRealtime()
+                    if (now - lastNotify >= 1000L) {
+                        lastNotify = now
+                        Progress.notifyOngoing(ctx, "离线转写", "$title · $it", 0, 0)
+                    }
+                }) {
                     PhoneAsrBatch.Outcome.SENT, PhoneAsrBatch.Outcome.SILENT -> { f.delete(); meta.delete() }
                     else -> failed = true
                 }

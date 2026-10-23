@@ -4,7 +4,7 @@
     android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?android:attr/colorBackground"
+    android:background="@drawable/bg_app_canvas"
     android:orientation="vertical">
 
     <com.google.android.material.appbar.MaterialToolbar
@@ -71,6 +71,7 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:background="@drawable/bg_glass_hero"
                         android:orientation="vertical"
                         android:padding="22dp">
 
@@ -108,21 +109,30 @@
                             style="@style/Text.SectionTitle"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="三步准备，就能开始" />
+                            android:text="傻瓜模式 · 一键就绪" />
 
                         <TextView
                             style="@style/Text.Body"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="10dp"
-                            android:text="①  准备语音模型\n②  选择录音目录\n③  确认要处理的范围" />
+                            android:text="①  自动授权读取本机录音（免找录音文件夹）\n②  仅后台下载语音转写模型（约 450 MB · 断点续传，免苦等 2.4 GB 大模型）\n③  自动识别最近 7 天录音并即时快筛待办；深度纪要可随时选在线 AI 或闲时下载本地大模型" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnQuickSetup"
+                            style="@style/Button.Filled"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="14dp"
+                            app:icon="@drawable/ic_bolt"
+                            android:text="一键傻瓜设置（推荐）" />
 
                         <TextView
                             style="@style/Text.Muted"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="10dp"
-                            android:text="首次下载模型需要联网；转写本身可以离线运行。在线整理需要单独同意后才会开启。" />
+                            android:text="首次下载模型需要联网，下载与转写均在后台自动完成。也可以点击下方「分步设置」手动选择。" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
@@ -135,11 +145,20 @@
                 android:orientation="vertical"
                 android:visibility="gone">
 
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSuiteDownload"
+                    style="@style/Button.Filled"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    app:icon="@drawable/ic_download"
+                    android:text="一键后台下载全套模型（推荐 · 转写 + 纪要）" />
+
                 <com.google.android.material.card.MaterialCardView
                     style="@style/Card"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="18dp">
+                    android:layout_marginTop="12dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -158,7 +177,7 @@
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:text="语音识别 · SenseVoice" />
+                                android:text="语音转写 · 离线识别" />
 
                             <com.google.android.material.chip.Chip
                                 android:id="@+id/chipAsr"
@@ -175,7 +194,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:text="sv.tflite · tokens.json · am.mvn · 约 450 MB" />
+                            android:text="离线把录音转成文字，并自动区分说话人 · 约 450 MB" />
 
                         <com.google.android.material.progressindicator.LinearProgressIndicator
                             android:id="@+id/progressAsr"
@@ -267,26 +286,26 @@
                             android:text="" />
 
                         <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnLlmDownload"
-                            style="@style/Button.Tonal"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:text="下载本地模型（约 2.4 GB）" />
-
-                        <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnLlmOnline"
                             style="@style/Button.Tonal"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="使用在线 AI 服务" />
+                            android:layout_marginTop="10dp"
+                            android:text="使用在线 AI 服务（推荐 · 0 下载秒出纪要）" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnLlmDownload"
+                            style="@style/Button.Tonal"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="后台下载本地大模型（约 2.4 GB · 断点续传）" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnLlmSkip"
                             style="@style/Button.Text"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="暂不整理，只转写" />
+                            android:text="先用本机规则快筛（0 下载 · 免等待）" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
@@ -329,7 +348,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
                     app:icon="@drawable/ic_check"
-                    android:text="一键授权读取录音文件" />
+                    android:text="一键自动查找本机录音（推荐 · 免找文件夹）" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnPickFolder"
@@ -338,7 +357,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
                     app:icon="@drawable/ic_folder"
-                    android:text="手动选择录音目录" />
+                    android:text="手动选择录音文件夹（已自动定位常见目录）" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnAllFiles"
@@ -561,6 +580,7 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:background="@drawable/bg_glass_hero"
                         android:orientation="vertical"
                         android:padding="22dp">
 

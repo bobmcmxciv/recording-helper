@@ -18,8 +18,8 @@ object Progress {
             .setOngoing(true)
             .setProgress(max, cur, indeterminate)
             .apply {
-                // 本地转写时点通知直接看转写过程
-                if (Prefs.localAsr(ctx)) setContentIntent(android.app.PendingIntent.getActivity(ctx, 0,
+                // 点通知直接查看转写与大模型总结推理过程
+                setContentIntent(android.app.PendingIntent.getActivity(ctx, 0,
                     android.content.Intent(ctx, TranscribeLiveActivity::class.java),
                     android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT))
             }

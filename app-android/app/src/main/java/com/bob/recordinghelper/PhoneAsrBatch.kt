@@ -59,7 +59,14 @@ class PhoneAsrBatch(private val ctx: Context) : java.io.Closeable {
         LiveAsr.begin(title, fileNo, files, s.engine.name, s.speakersOn, s.libraryNames)
         val out = try {
             s.transcribe(f, { seg -> status("已转 ${seg.end.toInt()} 秒") }, LiveAsr::on)
+        } catch (e: InterruptedException) {
+            LiveAsr.finish("已暂停：${f.name}")
+            throw e
         } catch (t: Throwable) {
+            if (t is InterruptedException || t.cause is InterruptedException) {
+                LiveAsr.finish("已暂停：${f.name}")
+                throw InterruptedException(t.message)
+            }
             Prefs.setLastAsr(ctx, "转写失败（${f.name}）：${t.message?.take(80)}")
             LiveAsr.finish("转写失败：${t.message?.take(80)}")
             return Outcome.FAILED
@@ -85,7 +92,9 @@ class PhoneAsrBatch(private val ctx: Context) : java.io.Closeable {
         // phone-asr：服务器把它当录音分析（文件名里的通话对方、通话/会议分类）；分出两人以上时是"名字：文字"逐行
         val upload = r.uploadText
         local.transcript(localKey, title, upload, occurredAt)
-        com.bob.recordinghelper.local.AnalysisWorker.schedule(ctx)
+        if (!Prefs.autoScan(ctx) || com.bob.recordinghelper.local.RecordingQueue.of(ctx).pending() <= 1) {
+            com.bob.recordinghelper.local.AnalysisWorker.schedule(ctx)
+        }
         return Outcome.SENT
     }
 

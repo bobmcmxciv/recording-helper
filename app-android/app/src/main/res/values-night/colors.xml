@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="md_primary">#77D8BC</color>
-    <color name="md_on_primary">#003830</color>
+    <color name="md_primary">#5EEAD4</color>
+    <color name="md_on_primary">#00382F</color>
     <color name="md_primary_container">#005144</color>
-    <color name="md_on_primary_container">#B9EFE0</color>
-    <color name="md_secondary">#B1CCC7</color>
-    <color name="md_on_secondary">#1C3532</color>
-    <color name="md_secondary_container">#334B48</color>
-    <color name="md_on_secondary_container">#CDE8E3</color>
+    <color name="md_on_primary_container">#BCECE2</color>
+    <color name="md_secondary">#ACCBC9</color>
+    <color name="md_on_secondary">#173534</color>
+    <color name="md_secondary_container">#2E4B4A</color>
+    <color name="md_on_secondary_container">#CBE7E6</color>
     <color name="md_tertiary">#FFBB4D</color>
     <color name="md_on_tertiary">#492E00</color>
     <color name="md_tertiary_container">#684300</color>
@@ -16,41 +16,68 @@
     <color name="md_on_error">#690005</color>
     <color name="md_error_container">#93000A</color>
     <color name="md_on_error_container">#FFDAD6</color>
-    <color name="md_background">#101D23</color>
-    <color name="md_on_background">#EBF4F1</color>
-    <color name="md_surface">#101D23</color>
-    <color name="md_on_surface">#EBF4F1</color>
-    <color name="md_surface_variant">#3B4D53</color>
-    <color name="md_on_surface_variant">#A4B7B5</color>
-    <color name="md_outline">#849996</color>
-    <color name="md_outline_variant">#3B4D53</color>
-    <color name="md_surface_container_lowest">#0B151A</color>
-    <color name="md_surface_container_low">#16242A</color>
-    <color name="md_surface_container">#1A2A31</color>
-    <color name="md_surface_container_high">#223239</color>
-    <color name="md_surface_container_highest">#2A3A41</color>
-    <color name="md_inverse_surface">#EBF4F1</color>
-    <color name="md_inverse_on_surface">#1D2D34</color>
-    <color name="md_inverse_primary">#137A64</color>
+    <color name="md_background">#0C171E</color>
+    <color name="md_on_background">#E8F3F2</color>
+    <color name="md_surface">#0C171E</color>
+    <color name="md_on_surface">#E8F3F2</color>
+    <color name="md_surface_variant">#34484F</color>
+    <color name="md_on_surface_variant">#9EB5B7</color>
+    <color name="md_outline">#7D9698</color>
+    <color name="md_outline_variant">#2E4249</color>
+    <color name="md_surface_container_lowest">#081117</color>
+    <color name="md_surface_container_low">#122028</color>
+    <color name="md_surface_container">#162630</color>
+    <color name="md_surface_container_high">#1E303A</color>
+    <color name="md_surface_container_highest">#263A45</color>
+    <color name="md_inverse_surface">#E8F3F2</color>
+    <color name="md_inverse_on_surface">#182A32</color>
+    <color name="md_inverse_primary">#0D7463</color>
 
-    <color name="hero_background">#0F2B2E</color>
+    <!-- Ambient glass canvas (dark). -->
+    <color name="canvas_start">#0A151D</color>
+    <color name="canvas_mid">#0E1C26</color>
+    <color name="canvas_end">#101A2B</color>
+    <color name="canvas_orb_teal">#2914B8A6</color>
+    <color name="canvas_orb_sky">#2138BDF8</color>
+
+    <!-- Translucent glass surfaces & specular borders (dark). -->
+    <color name="glass_card_bg">#CC15242E</color>
+    <color name="glass_card_stroke">#29FFFFFF</color>
+    <color name="glass_tonal_bg">#C7192E38</color>
+    <color name="glass_tonal_stroke">#335EEAD4</color>
+    <color name="glass_inset_bg">#9911222B</color>
+    <color name="glass_inset_stroke">#335EEAD4</color>
+    <color name="glass_tile_bg">#CC192B36</color>
+    <color name="glass_tile_stroke">#26FFFFFF</color>
+    <color name="glass_nav_bg">#E60E1A22</color>
+    <color name="glass_nav_stroke">#24FFFFFF</color>
+    <color name="glass_nav_indicator">#66005144</color>
+    <color name="glass_chip_bg">#B3172731</color>
+
+    <!-- Hero panel (dark). -->
+    <color name="hero_background">#0B2E3A</color>
+    <color name="hero_mid">#103E4C</color>
+    <color name="hero_end">#142E4C</color>
+    <color name="hero_glow">#2E2DD4BF</color>
+    <color name="hero_stroke">#38FFFFFF</color>
     <color name="hero_on">#FFFFFF</color>
-    <color name="hero_muted">#A9C7C2</color>
-    <color name="hero_accent">#8DE0C6</color>
-    <color name="hero_button">#1F8A70</color>
-    <color name="hero_button_soft">#1D4346</color>
+    <color name="hero_muted">#B2D4CF</color>
+    <color name="hero_accent">#5EEAD4</color>
+    <color name="hero_button">#2DD4BF</color>
+    <color name="hero_button_on">#042F2E</color>
+    <color name="hero_button_soft">#24FFFFFF</color>
 
-    <color name="status_pending_bg">#4A3A14</color>
+    <color name="status_pending_bg">#CC4A3A14</color>
     <color name="status_pending_fg">#FFDEA6</color>
-    <color name="status_ready_bg">#0F4A3D</color>
-    <color name="status_ready_fg">#B9EFE0</color>
-    <color name="status_error_bg">#5C1A16</color>
+    <color name="status_ready_bg">#CC0F4A3D</color>
+    <color name="status_ready_fg">#BCECE2</color>
+    <color name="status_error_bg">#CC5C1A16</color>
     <color name="status_error_fg">#FFDAD6</color>
-    <color name="status_neutral_bg">#2A3A41</color>
+    <color name="status_neutral_bg">#CC24353D</color>
     <color name="status_neutral_fg">#C3D0CD</color>
     <color name="due_overdue">#FFB4AB</color>
     <color name="due_today">#FFBB4D</color>
-    <color name="speaker_a_bg">#16302C</color>
-    <color name="speaker_b_bg">#2A2E26</color>
-    <color name="speaker_c_bg">#262A38</color>
+    <color name="speaker_a_bg">#CC16302C</color>
+    <color name="speaker_b_bg">#CC2A2E26</color>
+    <color name="speaker_c_bg">#CC262A38</color>
 </resources>

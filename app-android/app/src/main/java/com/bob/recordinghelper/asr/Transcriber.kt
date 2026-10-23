@@ -75,7 +75,8 @@ class Transcriber(
         val tracker = speakers
         var spkError: String? = null
         val spkThread = tracker?.let {
-            thread(name = "asr-spk", priority = Thread.NORM_PRIORITY - 1) {
+            thread(name = "asr-spk", priority = Thread.NORM_PRIORITY) {
+                runCatching { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_DEFAULT) }
                 var sinceRecluster = 0L
                 while (true) {
                     val p = try { spkQueue.take() } catch (_: InterruptedException) { break }
@@ -96,7 +97,8 @@ class Transcriber(
                 }
             }
         }
-        val producer = thread(name = "asr-decode") {
+        val producer = thread(name = "asr-decode", priority = Thread.NORM_PRIORITY) {
+            runCatching { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_DEFAULT) }
             var index = 0
             try {
                 val segmenter = Segmenter { pcm, n, startSample ->

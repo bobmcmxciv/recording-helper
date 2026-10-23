@@ -38,6 +38,18 @@ object LiveAsr {
         val polishChunks: Int,
         val polishText: String,
         val polishStatus: String,
+        val polishActive: Boolean = false,
+        val polishStartedAt: Long = 0L,
+        val llmActive: Boolean = false,
+        val llmTitle: String = "",
+        val llmModel: String = "",
+        val llmTask: String = "",
+        val llmChunk: Int = 0,
+        val llmChunks: Int = 0,
+        val llmStartedAt: Long = 0L,
+        val llmText: String = "",
+        val llmStatus: String = "",
+        val llmFinalSummary: String = "",
     )
 
     private val lock = Any()
@@ -61,19 +73,37 @@ object LiveAsr {
     private var polishChunks = 0
     private var polishText = ""
     private var polishStatus = ""
+    private var polishActive = false
+    private var polishStartedAt = 0L
     private val polishDoneText = StringBuilder()
+    private var llmActive = false
+    private var llmTitle = ""
+    private var llmModel = ""
+    private var llmTask = ""
+    private var llmChunk = 0
+    private var llmChunks = 0
+    private var llmStartedAt = 0L
+    private val llmStream = StringBuilder()
+    private var llmGeneratedChars = 0
+    private var llmStatus = ""
+    private var llmFinalSummary = ""
 
     private val listeners = CopyOnWriteArraySet<() -> Unit>()
-    private val main = Handler(Looper.getMainLooper())
+    private val main: Handler? = runCatching { Looper.getMainLooper()?.let { Handler(it) } }.getOrNull()
     @Volatile private var posted = false
 
     fun addListener(l: () -> Unit) { listeners.add(l) }
     fun removeListener(l: () -> Unit) { listeners.remove(l) }
 
     private fun changed() {
+        val h = main
+        if (h == null) {
+            listeners.forEach { it() }
+            return
+        }
         if (posted) return
         posted = true
-        main.postDelayed({ posted = false; listeners.forEach { it() } }, 200)
+        h.postDelayed({ posted = false; listeners.forEach { it() } }, 180)
     }
 
     /** 一个文件开始转写。 */
@@ -124,16 +154,23 @@ object LiveAsr {
     fun polishBegin(title: String, model: String) {
         synchronized(lock) {
             polishTitle = title; polishModel = model; polishChunk = 0; polishChunks = 0
-            polishText = ""; polishStatus = "润色中"; polishDoneText.setLength(0)
+            polishText = ""; polishStatus = "正在准备本地润色…"; polishDoneText.setLength(0)
+            polishActive = true; polishStartedAt = System.currentTimeMillis()
         }
         changed()
     }
 
     /** 当前段（第 [chunk] 段，共 [chunks] 段）模型已输出的文字。 */
-    fun polishProgress(chunk: Int, chunks: Int, partial: String) {
+    fun polishProgress(chunk: Int, chunks: Int, partial: String, status: String = "") {
         synchronized(lock) {
+            polishActive = true
             if (chunk > polishChunk && polishText.isNotEmpty()) polishDoneText.append(polishText).append('\n')
             polishChunk = chunk; polishChunks = chunks; polishText = partial
+            polishStatus = when {
+                status.isNotEmpty() -> status
+                partial.isEmpty() -> "正在预填充第 ${chunk + 1}/$chunks 段原文（CPU 4 核计算中）…"
+                else -> "正在流式润色第 ${chunk + 1}/$chunks 段（已生成 ${partial.length} 字）…"
+            }
         }
         changed()
     }
@@ -141,16 +178,92 @@ object LiveAsr {
     /** 一条录音润色结束；[text] 是完整润色稿（失败时为空）。 */
     fun polishDone(status: String, text: String = "") {
         synchronized(lock) {
+            polishActive = false
             polishStatus = status
             if (text.isNotEmpty()) { polishDoneText.setLength(0); polishText = text; polishChunk = polishChunks }
         }
         changed()
     }
 
+    /** 大模型开始提炼纪要/待办或生成时段总结。 */
+    fun llmBegin(title: String, model: String, task: String, chunks: Int = 1) {
+        synchronized(lock) {
+            llmActive = true
+            llmTitle = title
+            llmModel = model
+            llmTask = task
+            llmChunk = 1
+            llmChunks = maxOf(chunks, 1)
+            llmStartedAt = System.currentTimeMillis()
+            llmStream.setLength(0)
+            llmGeneratedChars = 0
+            llmStatus = "正在准备推理上下文…"
+            llmFinalSummary = ""
+        }
+        changed()
+    }
+
+    /** 大模型进入第 [chunk]/[chunks] 段推理。 */
+    fun llmChunk(chunk: Int, chunks: Int, status: String = "") {
+        synchronized(lock) {
+            llmActive = true
+            llmChunk = chunk
+            llmChunks = maxOf(chunks, 1)
+            if (status.isNotEmpty()) llmStatus = status
+        }
+        changed()
+    }
+
+    /** 大模型正在预填充提示词或等待云端首包。 */
+    fun llmPrefill(chunk: Int, chunks: Int, status: String) {
+        synchronized(lock) {
+            llmActive = true
+            llmChunk = chunk
+            llmChunks = maxOf(chunks, 1)
+            llmGeneratedChars = 0
+            llmStatus = status
+        }
+        changed()
+    }
+
+    /** 大模型流式输出一个片段（含 `<think>` 思考过程或 JSON 内容）。 */
+    fun llmToken(piece: String) {
+        if (piece.isEmpty()) return
+        synchronized(lock) {
+            llmActive = true
+            llmStream.append(piece)
+            llmGeneratedChars += piece.length
+            val s = llmStream.toString()
+            val thinking = s.lastIndexOf("<think>") > s.lastIndexOf("</think>")
+            val stage = if (thinking) "正在深度思考推理" else "正在流式生成"
+            llmStatus = if (llmChunks > 1) {
+                "$stage（第 $llmChunk/$llmChunks 段 · 已生成 $llmGeneratedChars 字）…"
+            } else {
+                "$stage（已生成 $llmGeneratedChars 字）…"
+            }
+        }
+        changed()
+    }
+
+    /** 大模型完成或中断一条推理任务。 */
+    fun llmFinish(status: String, finalSummary: String = "") {
+        synchronized(lock) {
+            llmActive = false
+            llmStatus = status
+            if (finalSummary.isNotBlank()) llmFinalSummary = finalSummary.trim()
+        }
+        changed()
+    }
+
     fun snapshot(): Snapshot = synchronized(lock) {
-        Snapshot(active, title, fileNo, files, engine, phase, speakersOn, libraryNames, startedAt,
+        Snapshot(
+            active, title, fileNo, files, engine, phase, speakersOn, libraryNames, startedAt,
             rows.lastOrNull()?.end ?: 0.0, rows.size, rows.count { it.modelMs == 0L }, rows.sumOf { it.modelMs },
             speakerCount, rows.toList(), final, summary,
-            polishTitle, polishModel, polishChunk, polishChunks, polishDoneText.toString() + polishText, polishStatus)
+            polishTitle, polishModel, polishChunk, polishChunks, polishDoneText.toString() + polishText, polishStatus,
+            polishActive, polishStartedAt,
+            llmActive, llmTitle, llmModel, llmTask, llmChunk, llmChunks, llmStartedAt,
+            llmStream.toString(), llmStatus, llmFinalSummary,
+        )
     }
 }

@@ -56,8 +56,72 @@ object ModelSource {
         }
     }
 
+    /** Orders slots so core speech recognition (tokens -> am.mvn -> sv.tflite) becomes ready before optional speaker or 2.4 GB LLM files. */
+    fun slotPriority(slot: String): Int = when (slot) {
+        "tokens.json" -> 0
+        "am.mvn" -> 1
+        "sv.tflite" -> 2
+        "spk.tflite" -> 3
+        "model.gguf" -> 4
+        else -> 5
+    }
+
+    fun isDomesticLocale(
+        tzId: String = java.util.TimeZone.getDefault().id.orEmpty(),
+        country: String = java.util.Locale.getDefault().country.orEmpty(),
+    ): Boolean = country.equals("CN", ignoreCase = true) ||
+        tzId in setOf("Asia/Shanghai", "Asia/Chongqing", "Asia/Harbin", "Asia/Urumqi", "GMT+08:00")
+
+    /**
+     * Resolves primary + fallback HTTPS URLs for an entry.
+     * Automatically synthesizes hf-mirror <-> huggingface.co fallback when mirror is omitted,
+     * and prioritizes domestic mirrors (e.g. hf-mirror.com) when [preferDomestic] is true.
+     */
+    fun orderedUrls(entry: Entry, preferDomestic: Boolean = isDomesticLocale(), forceMirrorFirst: Boolean = false): Pair<String, String> {
+        val rawMirror = entry.mirror.ifBlank {
+            when {
+                entry.url.startsWith("https://huggingface.co/") -> entry.url.replaceFirst("https://huggingface.co/", "https://hf-mirror.com/")
+                entry.url.startsWith("https://hf-mirror.com/") -> entry.url.replaceFirst("https://hf-mirror.com/", "https://huggingface.co/")
+                else -> ""
+            }
+        }
+        val candidates = listOf(entry.url, rawMirror).filter { it.startsWith("https://") }.distinct()
+        if (candidates.size <= 1) return candidates.firstOrNull().orEmpty() to ""
+        if (forceMirrorFirst) return candidates[1] to candidates[0]
+        val sorted = if (preferDomestic) {
+            candidates.sortedBy { url ->
+                when {
+                    url.startsWith("https://hf-mirror.com/") -> 0
+                    !url.startsWith("https://huggingface.co/") && !url.startsWith("https://github.com/") -> 1
+                    else -> 2
+                }
+            }
+        } else candidates
+        return sorted[0] to sorted.getOrElse(1) { "" }
+    }
+
     /** Queues the downloads one after another (the installer is a single unique work chain). */
-    fun enqueue(ctx: Context, entries: List<Entry>, useMirror: Boolean = false) {
-        for (e in entries) ModelInstallWorker.enqueue(ctx, e.slot, if (useMirror && e.mirror.isNotBlank()) e.mirror else e.url, e.sha256)
+    fun enqueue(ctx: Context, entries: List<Entry>, useMirror: Boolean = false, unmeteredLlm: Boolean = false) {
+        val ordered = entries.sortedBy { slotPriority(it.slot) }
+        for (e in ordered) {
+            val (primary, fallback) = orderedUrls(e, forceMirrorFirst = useMirror && e.mirror.isNotBlank())
+            val wifiOnly = unmeteredLlm && e.slot == "model.gguf"
+            ModelInstallWorker.enqueue(ctx, e.slot, primary, e.sha256, fallback, unmeteredOnly = wifiOnly)
+        }
+    }
+
+    /** Returns entries that are not yet installed on disk, ordered so speech ASR models install before the larger LLM. */
+    fun missingEntries(ctx: Context, entries: List<Entry>, includeLlm: Boolean = false): List<Entry> {
+        return entries
+            .filter { includeLlm || it.slot != "model.gguf" }
+            .filter { e ->
+                if (e.slot == "model.gguf") {
+                    com.bob.recordinghelper.llm.LlmEngine.modelIn(com.bob.recordinghelper.LocalAsr.llmDir(ctx)) == null
+                } else {
+                    val f = ModelFiles.target(ctx, e.slot)
+                    !f.isFile || f.length() <= 0L
+                }
+            }
+            .sortedBy { slotPriority(it.slot) }
     }
 }

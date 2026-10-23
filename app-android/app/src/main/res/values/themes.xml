@@ -46,7 +46,7 @@
     </style>
     <style name="Shape.Dialog" parent="">
         <item name="cornerFamily">rounded</item>
-        <item name="cornerSize">24dp</item>
+        <item name="cornerSize">26dp</item>
     </style>
 
     <style name="AppBottomSheet" parent="ThemeOverlay.Material3.BottomSheetDialog">
@@ -54,7 +54,7 @@
     </style>
     <style name="AppBottomSheetStyle" parent="Widget.Material3.BottomSheet.Modal">
         <item name="shapeAppearanceOverlay">@style/Shape.Sheet</item>
-        <item name="backgroundTint">?attr/colorSurfaceContainerLow</item>
+        <item name="backgroundTint">@color/glass_card_bg</item>
     </style>
     <style name="Shape.Sheet" parent="">
         <item name="cornerFamily">rounded</item>
@@ -72,7 +72,8 @@
     <!-- Text styles -->
     <style name="Text.Eyebrow" parent="TextAppearance.Material3.LabelMedium">
         <item name="android:textColor">?attr/colorPrimary</item>
-        <item name="android:letterSpacing">0.12</item>
+        <item name="android:letterSpacing">0.14</item>
+        <item name="android:textStyle">bold</item>
         <item name="android:textAllCaps">true</item>
     </style>
     <style name="Text.PageTitle" parent="TextAppearance.Material3.HeadlineMedium">
@@ -85,63 +86,82 @@
     </style>
     <style name="Text.CardTitle" parent="TextAppearance.Material3.TitleMedium">
         <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="android:textStyle">bold</item>
     </style>
     <style name="Text.Body" parent="TextAppearance.Material3.BodyMedium">
         <item name="android:textColor">?attr/colorOnSurface</item>
-        <item name="android:lineSpacingMultiplier">1.25</item>
+        <item name="android:lineSpacingMultiplier">1.28</item>
     </style>
     <style name="Text.Muted" parent="TextAppearance.Material3.BodySmall">
         <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
-        <item name="android:lineSpacingMultiplier">1.2</item>
+        <item name="android:lineSpacingMultiplier">1.22</item>
     </style>
     <style name="Text.Label" parent="TextAppearance.Material3.LabelLarge">
         <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
     </style>
 
-    <!-- Cards -->
+    <!-- Translucent Glass Cards (Material 3 Expressive geometry + specular border) -->
     <style name="Card" parent="Widget.Material3.CardView.Filled">
-        <item name="cardBackgroundColor">?attr/colorSurfaceContainerLowest</item>
-        <item name="cardCornerRadius">20dp</item>
+        <item name="cardBackgroundColor">@color/glass_card_bg</item>
+        <item name="cardCornerRadius">24dp</item>
         <item name="cardElevation">0dp</item>
-        <item name="strokeWidth">0dp</item>
+        <item name="strokeWidth">1.5dp</item>
+        <item name="strokeColor">@color/glass_card_stroke</item>
     </style>
     <style name="Card.Tonal">
-        <item name="cardBackgroundColor">?attr/colorSurfaceContainer</item>
+        <item name="cardBackgroundColor">@color/glass_tonal_bg</item>
+        <item name="cardCornerRadius">24dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeWidth">1.5dp</item>
+        <item name="strokeColor">@color/glass_tonal_stroke</item>
     </style>
     <style name="Card.Hero">
         <item name="cardBackgroundColor">@color/hero_background</item>
-        <item name="cardCornerRadius">24dp</item>
+        <item name="cardCornerRadius">28dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeWidth">1.5dp</item>
+        <item name="strokeColor">@color/hero_stroke</item>
     </style>
 
-    <!-- Buttons -->
+    <!-- Expressive Glass Pill & Squircle Buttons -->
     <style name="Button.Hero" parent="Widget.Material3.Button">
         <item name="backgroundTint">@color/hero_button</item>
-        <item name="android:textColor">@color/hero_on</item>
-        <item name="iconTint">@color/hero_on</item>
-        <item name="cornerRadius">14dp</item>
+        <item name="android:textColor">@color/hero_button_on</item>
+        <item name="iconTint">@color/hero_button_on</item>
+        <item name="cornerRadius">18dp</item>
         <item name="android:minHeight">52dp</item>
     </style>
     <style name="Button.HeroSoft" parent="Widget.Material3.Button">
         <item name="backgroundTint">@color/hero_button_soft</item>
         <item name="android:textColor">@color/hero_on</item>
         <item name="iconTint">@color/hero_on</item>
-        <item name="cornerRadius">14dp</item>
+        <item name="strokeColor">@color/hero_stroke</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="cornerRadius">18dp</item>
         <item name="android:minHeight">52dp</item>
     </style>
     <style name="Button.Tonal" parent="Widget.Material3.Button.TonalButton">
-        <item name="cornerRadius">14dp</item>
-        <item name="android:minHeight">48dp</item>
+        <item name="backgroundTint">@color/glass_tile_bg</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="iconTint">?attr/colorPrimary</item>
+        <item name="strokeColor">@color/glass_tile_stroke</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="cornerRadius">18dp</item>
+        <item name="android:minHeight">50dp</item>
     </style>
     <style name="Button.Filled" parent="Widget.Material3.Button">
-        <item name="cornerRadius">14dp</item>
+        <item name="cornerRadius">18dp</item>
         <item name="android:minHeight">52dp</item>
     </style>
     <style name="Button.Outlined" parent="Widget.Material3.Button.OutlinedButton">
-        <item name="cornerRadius">14dp</item>
+        <item name="backgroundTint">@color/glass_chip_bg</item>
+        <item name="strokeColor">@color/glass_card_stroke</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="cornerRadius">18dp</item>
         <item name="android:minHeight">48dp</item>
     </style>
     <style name="Button.Text" parent="Widget.Material3.Button.TextButton">
-        <item name="cornerRadius">14dp</item>
+        <item name="cornerRadius">16dp</item>
     </style>
     <style name="Button.Icon" parent="Widget.Material3.Button.IconButton">
         <item name="iconTint">?attr/colorOnSurfaceVariant</item>
@@ -149,14 +169,19 @@
 
     <style name="Chip.Status" parent="Widget.Material3.Chip.Assist">
         <item name="chipMinHeight">28dp</item>
-        <item name="chipStrokeWidth">0dp</item>
+        <item name="chipCornerRadius">999dp</item>
+        <item name="chipStrokeWidth">1dp</item>
+        <item name="chipStrokeColor">@color/glass_card_stroke</item>
         <item name="android:textSize">12sp</item>
         <item name="ensureMinTouchTargetSize">false</item>
-        <item name="chipStartPadding">8dp</item>
-        <item name="chipEndPadding">8dp</item>
+        <item name="chipStartPadding">10dp</item>
+        <item name="chipEndPadding">10dp</item>
         <item name="chipIconSize">16dp</item>
     </style>
     <style name="Chip.Filter" parent="Widget.Material3.Chip.Filter">
+        <item name="chipCornerRadius">999dp</item>
+        <item name="chipStrokeWidth">1dp</item>
+        <item name="chipStrokeColor">@color/glass_card_stroke</item>
         <item name="ensureMinTouchTargetSize">false</item>
     </style>
 

@@ -66,20 +66,38 @@ object TrialAsr {
                 // an app above ~6 GB PSS, and a large LLM next to SenseVoice and CAM++ goes over it)
                 val o = result
                 if (o != null && Prefs.polishMode(app) == Prefs.POLISH_LOCAL) com.bob.recordinghelper.llm.LlmEngine.modelIn(LocalAsr.llmDir(app))?.let { mf ->
-                    if (polishSrc.isNotBlank()) try {
-                        ModelGate.hold { com.bob.recordinghelper.llm.LlmEngine.load(mf).use { eng ->
-                            LiveAsr.polishBegin("试转：$name", eng.name)
-                            val p = com.bob.recordinghelper.llm.Polisher(eng).polish(polishSrc) {
-                                LiveAsr.polishProgress(it.chunk, it.chunks, it.partial)
-                            }
-                            LiveAsr.polishDone("试转润色完成（%d 段，%d 段保留原文，%.0f 秒）".format(p.chunks, p.keptOriginal, p.ms / 1000.0), p.text)
-                            o.put("polished", p.text).put("polish_model", eng.name).put("polish_ms", p.ms)
-                                .put("polish_chunks", p.chunks).put("polish_kept_original", p.keptOriginal)
-                                .put("polish_source", polishSrc).put("polish_rejected", JSONArray(p.rejected))
-                        } }
-                    } catch (t: Throwable) {
-                        o.put("polish_error", t.toString())
-                        LiveAsr.polishDone("试转润色失败：${t.message?.take(80)}")
+                    if (polishSrc.isNotBlank()) {
+                        val trialId = "trial:$name"
+                        val trialTitle = "试转：$name"
+                        val localLabel = "本地大模型 ${mf.nameWithoutExtension}"
+                        try {
+                            val loadMsg = "正在加载 $localLabel（${Progress.human(mf.length())} · CPU 4 核准备中）…"
+                            com.bob.recordinghelper.local.AnalysisState.onPhase(trialId, loadMsg, title = trialTitle, model = localLabel)
+                            LiveAsr.polishBegin(trialTitle, localLabel)
+                            ModelGate.hold { com.bob.recordinghelper.llm.LlmEngine.load(mf).use { eng ->
+                                val modelLabel = "本地大模型 ${eng.name}"
+                                LiveAsr.polishBegin(trialTitle, modelLabel)
+                                val p = com.bob.recordinghelper.llm.Polisher(eng).polish(polishSrc) {
+                                    val polishPhase = if (it.partial.isEmpty()) {
+                                        "正在预填充第 ${it.chunk + 1}/${it.chunks} 段原文（CPU 4 核计算中）…"
+                                    } else {
+                                        "正在流式润色第 ${it.chunk + 1}/${it.chunks} 段（已生成 ${it.partial.length} 字）…"
+                                    }
+                                    LiveAsr.polishProgress(it.chunk, it.chunks, it.partial, polishPhase)
+                                    com.bob.recordinghelper.local.AnalysisState.onPhase(trialId, polishPhase, title = trialTitle, model = modelLabel)
+                                    if (it.partial.isNotEmpty()) com.bob.recordinghelper.local.AnalysisState.onStreamReplace(trialId, it.partial)
+                                }
+                                LiveAsr.polishDone("试转润色完成（%d 段，%d 段保留原文，%.0f 秒）".format(p.chunks, p.keptOriginal, p.ms / 1000.0), p.text)
+                                o.put("polished", p.text).put("polish_model", eng.name).put("polish_ms", p.ms)
+                                    .put("polish_chunks", p.chunks).put("polish_kept_original", p.keptOriginal)
+                                    .put("polish_source", polishSrc).put("polish_rejected", JSONArray(p.rejected))
+                            } }
+                        } catch (t: Throwable) {
+                            o.put("polish_error", t.toString())
+                            LiveAsr.polishDone("试转润色失败：${t.message?.take(80)}")
+                        } finally {
+                            com.bob.recordinghelper.local.AnalysisState.onJobFinished(trialId)
+                        }
                     }
                     File(dir(app), "$name.result.json").apply { writeText(o.toString(1)); setReadable(true, false) }
                 }

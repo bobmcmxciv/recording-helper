@@ -38,6 +38,7 @@ object AutoImportSettings {
         if (scope != Prefs.scanScope(ctx) || (scope == "recent" && days != Prefs.scanDays(ctx)))
             RecordingQueue.of(ctx).resetUnstartedAutomatic()
         Prefs.setScanScope(ctx, scope, days)
+        AnalysisWorker.setPaused(ctx, false)
         App.scheduleScan(ctx.applicationContext as Application)
         requestScan(ctx)
     }
@@ -51,9 +52,14 @@ object AutoImportSettings {
         if (paused) {
             App.cancelScan(ctx.applicationContext as Application)
             androidx.work.WorkManager.getInstance(ctx).cancelUniqueWork("manual-scan")
+            RecordingQueueWorker.cancelActive(ctx)
+            AnalysisWorker.cancelActive(ctx, pauseBackground = true)
         } else {
+            AnalysisWorker.setPaused(ctx, false)
             App.scheduleScan(ctx.applicationContext as Application)
-            requestScan(ctx); RecordingQueueWorker.schedule(ctx)
+            requestScan(ctx)
+            RecordingQueueWorker.schedule(ctx)
+            AnalysisWorker.schedule(ctx)
         }
     }
 

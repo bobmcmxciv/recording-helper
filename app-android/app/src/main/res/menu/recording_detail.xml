@@ -12,7 +12,11 @@
         app:showAsAction="never" />
     <item
         android:id="@+id/action_reanalyze"
-        android:title="重新整理"
+        android:title="一键重新总结"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_live_trace"
+        android:title="查看模型推理过程"
         app:showAsAction="never" />
     <item
         android:id="@+id/action_delete"

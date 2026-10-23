@@ -14,10 +14,16 @@ object Binders {
     /** "名字：文字" lines produced by on-device speaker separation. */
     val SPEAKER_LINE = Regex("^([^：:\\n]{1,20})[：:](.*)$")
 
-    fun status(chip: Chip, status: String) {
-        val (label, bg, fg) = when (status) {
+    fun status(chip: Chip, status: String, id: String? = null) {
+        val effective = when {
+            id != null && com.bob.recordinghelper.local.AnalysisState.isActive(id) -> "analyzing"
+            id != null && com.bob.recordinghelper.local.AnalysisState.isQueued(id) -> "queued_analysis"
+            else -> status
+        }
+        val (label, bg, fg) = when (effective) {
+            "queued_analysis" -> Triple("排队整理", R.color.status_pending_bg, R.color.status_pending_fg)
             "pending" -> Triple("等待整理", R.color.status_pending_bg, R.color.status_pending_fg)
-            "analyzing" -> Triple("整理中", R.color.status_pending_bg, R.color.status_pending_fg)
+            "analyzing" -> Triple("模型整理中", R.color.status_pending_bg, R.color.status_pending_fg)
             "ready" -> Triple("已生成纪要", R.color.status_ready_bg, R.color.status_ready_fg)
             "error" -> Triple("需重试", R.color.status_error_bg, R.color.status_error_fg)
             "silent" -> Triple("未识别到语音", R.color.status_neutral_bg, R.color.status_neutral_fg)
@@ -31,21 +37,44 @@ object Binders {
         text.lineSequence().mapNotNull { SPEAKER_LINE.find(it.trim())?.groupValues?.get(1) }.distinct().count()
 
     fun recording(b: ItemRecordingBinding, rec: JSONObject, todoCount: Int, onClick: () -> Unit) {
-        status(b.chipStatus, rec.optString("status"))
+        val id = rec.optString("id")
+        status(b.chipStatus, rec.optString("status"), id)
         b.tvDate.text = Ui.friendly(rec.optString("occurredAt"))
         b.tvTitle.text = rec.optString("title").ifBlank { "未命名录音" }
         val text = rec.optString("text")
-        val snippet = rec.optString("summary").ifBlank { text }.replace('\n', ' ').trim().take(140)
-        b.tvSnippet.text = snippet
-        b.tvSnippet.visibility = if (snippet.isBlank()) View.GONE else View.VISIBLE
-        val speakers = speakerCount(text)
-        val parts = buildList {
-            if (todoCount > 0) add("$todoCount 项待办")
-            if (speakers >= 2) add("$speakers 位说话人")
-            if (text.isNotBlank()) add("${text.length} 字")
+        val active = id.isNotBlank() && com.bob.recordinghelper.local.AnalysisState.isActive(id)
+        val queued = id.isNotBlank() && com.bob.recordinghelper.local.AnalysisState.isQueued(id)
+        if (active) {
+            val snap = com.bob.recordinghelper.local.AnalysisState.snapshot()
+            val elapsed = if (snap.startedAt > 0L) ((System.currentTimeMillis() - snap.startedAt) / 1000L).coerceAtLeast(1L) else 0L
+            val stream = snap.streamText.replace('\n', ' ').trim().takeLast(120)
+            val liveSnippet = if (stream.isNotBlank()) "${snap.phase}\n实时输出：$stream" else snap.phase.ifBlank { "模型正在整理此记录…" }
+            b.tvSnippet.text = liveSnippet
+            b.tvSnippet.visibility = View.VISIBLE
+            val metaParts = buildList {
+                if (snap.modelLabel.isNotBlank()) add(snap.modelLabel)
+                if (elapsed > 0L) add("已用时 ${elapsed} 秒")
+                add("点开查看实时过程")
+            }
+            b.tvMeta.text = metaParts.joinToString("  ·  ")
+            b.tvMeta.visibility = View.VISIBLE
+        } else {
+            val snippet = rec.optString("summary").ifBlank { text }.replace('\n', ' ').trim().take(140)
+            b.tvSnippet.text = snippet
+            b.tvSnippet.visibility = if (snippet.isBlank()) View.GONE else View.VISIBLE
+            val speakers = speakerCount(text)
+            val parts = buildList {
+                if (queued) {
+                    val pos = (com.bob.recordinghelper.local.AnalysisState.snapshot().queuedIds.indexOf(id) + 1).coerceAtLeast(1)
+                    add("排队第 $pos 位（等待前序模型任务）")
+                }
+                if (todoCount > 0) add("$todoCount 项待办")
+                if (speakers >= 2) add("$speakers 位说话人")
+                if (text.isNotBlank()) add("${text.length} 字")
+            }
+            b.tvMeta.text = parts.joinToString("  ·  ")
+            b.tvMeta.visibility = if (parts.isEmpty()) View.GONE else View.VISIBLE
         }
-        b.tvMeta.text = parts.joinToString("  ·  ")
-        b.tvMeta.visibility = if (parts.isEmpty()) View.GONE else View.VISIBLE
         b.card.setOnClickListener { onClick() }
     }
 

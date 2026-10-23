@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bob.recordinghelper.R
 import com.bob.recordinghelper.databinding.FragmentLibraryBinding
 import com.bob.recordinghelper.databinding.ItemRecordingBinding
+import com.bob.recordinghelper.local.AnalysisState
 import com.bob.recordinghelper.local.LocalStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -44,6 +45,7 @@ class LibraryFragment : TabFragment() {
         b.list.layoutManager = if (columns > 1) androidx.recyclerview.widget.GridLayoutManager(requireContext(), columns) else LinearLayoutManager(requireContext())
         Ui.column(b.root, if (Ui.sidePane(b.root)) 1440 else Ui.gridMaxDp(requireContext()))
         b.list.adapter = adapter
+        b.list.itemAnimator = null
         b.swipe.setOnRefreshListener { refresh() }
         b.fab.setOnClickListener { importAudio.launch(Imports.AUDIO_TYPES) }
         b.search.doAfterTextChanged { apply() }
@@ -53,6 +55,35 @@ class LibraryFragment : TabFragment() {
         })
     }
 
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val liveTicker = object : Runnable {
+        override fun run() {
+            if (_b != null && AnalysisState.snapshot().running) {
+                apply()
+                handler.postDelayed(this, 1000)
+            }
+        }
+    }
+    private val analysisListener = {
+        refresh()
+        if (AnalysisState.snapshot().running) {
+            handler.removeCallbacks(liveTicker)
+            handler.postDelayed(liveTicker, 1000)
+        }
+    }
+    override fun onResume() {
+        super.onResume()
+        AnalysisState.addListener(analysisListener)
+        if (AnalysisState.snapshot().running) {
+            handler.removeCallbacks(liveTicker)
+            handler.postDelayed(liveTicker, 1000)
+        }
+    }
+    override fun onPause() {
+        handler.removeCallbacks(liveTicker)
+        AnalysisState.removeListener(analysisListener)
+        super.onPause()
+    }
     override fun onDestroyView() { _b = null; super.onDestroyView() }
 
     override fun refresh() {
@@ -95,7 +126,10 @@ class LibraryFragment : TabFragment() {
 
 class RecordingAdapter(private val onOpen: (String) -> Unit) : ListAdapter<RecordingAdapter.Row, RecordingAdapter.VH>(DIFF) {
     data class Row(val id: String, val json: JSONObject, val todoCount: Int) {
-        val signature: String = json.toString() + "|" + todoCount
+        private val snap = AnalysisState.snapshot()
+        private val active = snap.activeId == id
+        private val elapsedBucket = if (active && snap.startedAt > 0L) (System.currentTimeMillis() - snap.startedAt) / 1000L else 0L
+        val signature: String = "${json}|$todoCount|$active|${id in snap.queuedIds}|${if (active) snap.phase else ""}|${if (active) snap.streamText.takeLast(80) else ""}|$elapsedBucket"
     }
     class VH(val b: ItemRecordingBinding) : RecyclerView.ViewHolder(b.root)
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = VH(ItemRecordingBinding.inflate(LayoutInflater.from(parent.context), parent, false))

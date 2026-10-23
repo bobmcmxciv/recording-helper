@@ -27,10 +27,12 @@ class App : Application() {
             com.bob.recordinghelper.local.RecordingQueue.of(this).retryUnavailable()
             localPrefs.edit().putLong("asrRecoveryInstall", installed).commit()
         }
+        com.bob.recordinghelper.local.LocalStore.of(this).recoverAnalyzing()
         if (Prefs.autoScan(this)) scheduleScan(this) else cancelScan(this)
         // 1.x network jobs must not wake up after an offline-first upgrade.
         WorkManager.getInstance(this).cancelUniqueWork("polish")
-        com.bob.recordinghelper.local.AnalysisWorker.schedule(this)
+        WorkManager.getInstance(this).cancelUniqueWork("local-analysis-now")
+        if (Prefs.autoScan(this)) com.bob.recordinghelper.local.AnalysisWorker.schedule(this)
         com.bob.recordinghelper.local.ImportWorker.schedule(this)
         if (Prefs.autoScan(this)) com.bob.recordinghelper.local.RecordingQueueWorker.schedule(this)
         com.bob.recordinghelper.local.SyncWorker.schedule(this)

@@ -5,7 +5,7 @@
     android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?android:attr/colorBackground"
+    android:background="@drawable/bg_app_canvas"
     android:orientation="vertical">
 
     <androidx.fragment.app.FragmentContainerView
@@ -14,11 +14,95 @@
         android:layout_height="0dp"
         android:layout_weight="1" />
 
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/modelWorkingBar"
+        style="@style/Card.Tonal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="12dp"
+        android:layout_marginBottom="6dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="14dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp">
+
+            <com.google.android.material.progressindicator.LinearProgressIndicator
+                android:id="@+id/progressModelWorking"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:indeterminate="true"
+                app:trackCornerRadius="3dp"
+                app:trackThickness="4dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvModelWorkingTitle"
+                        style="@style/Text.Label"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textColor="?attr/colorPrimary"
+                        android:textStyle="bold"
+                        android:text="模型正在工作" />
+
+                    <TextView
+                        android:id="@+id/tvModelWorkingSub"
+                        style="@style/Text.Muted"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:ellipsize="start"
+                        android:maxLines="2"
+                        android:text="" />
+                </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnModelWorkingView"
+                    style="@style/Button.Text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="0dp"
+                    android:paddingHorizontal="10dp"
+                    android:text="查看过程" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnModelWorkingStop"
+                    style="@style/Button.Text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="0dp"
+                    android:paddingHorizontal="8dp"
+                    android:textColor="?attr/colorError"
+                    android:text="停止" />
+            </LinearLayout>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/nav"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/colorSurfaceContainer"
+        android:background="@drawable/bg_glass_nav"
+        app:elevation="0dp"
+        app:itemActiveIndicatorStyle="@style/Widget.Material3.BottomNavigationView.ActiveIndicator"
         app:labelVisibilityMode="labeled"
         app:menu="@menu/bottom_nav"
         tools:viewBindingType="com.google.android.material.navigation.NavigationBarView" />

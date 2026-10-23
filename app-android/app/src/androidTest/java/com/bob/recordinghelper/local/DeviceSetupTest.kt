@@ -128,7 +128,7 @@ class DeviceSetupTest {
             .put("errors", inventory.errors).put("truncated", inventory.truncated)
             .put("insideCurrentWindow", inventory.files.count { ScanWindow.eligible(it.modified, it.bytes, System.currentTimeMillis(), cutoff) })
             .put("queue", RecordingQueue.of(ctx).counts()).put("asrModelReady", LocalAsr.modelReady(ctx))
-            .put("acceleration", LocalSettings.prefs(ctx).getBoolean("asrAcceleration", false)))
+            .put("acceleration", LocalAsr.isAccelerated(ctx)))
     }
 
     @Test fun queuePersistenceAndPauseContract() {
@@ -214,7 +214,7 @@ class DeviceSetupTest {
         val db = LocalStore.of(ctx)
         val result = JSONObject().put("route", "production_recording_queue").put("found", inventory.files.size)
             .put("directFiles", inventory.directCount).put("treeFiles", inventory.treeCount)
-            .put("acceleration", LocalSettings.prefs(ctx).getBoolean("asrAcceleration", false)).put("stage", "select")
+            .put("acceleration", LocalAsr.isAccelerated(ctx)).put("stage", "select")
         val now = System.currentTimeMillis()
         var duration = 0L
         val sample = inventory.files.filter { !it.source.startsWith("content://") && it.modified < now - 60_000 &&

@@ -23,9 +23,43 @@ object RecordingSources {
         } else listOf(path)
         return paths.distinct().map { fileKey(it, bytes, modified) }
     }
+    fun allAliases(path: String, bytes: Long, modified: Long, primary: String): List<String> {
+        val base = primary.trimEnd('/')
+        val suffix = when {
+            path.startsWith("$base/") -> path.removePrefix(base)
+            path.startsWith("/sdcard/") -> path.removePrefix("/sdcard")
+            path.startsWith("/storage/self/primary/") -> path.removePrefix("/storage/self/primary")
+            path.startsWith("saf:primary:") -> "/" + path.removePrefix("saf:primary:").trimStart('/')
+            else -> null
+        }
+        val paths = if (suffix != null) {
+            listOf("$base$suffix", "/sdcard$suffix", "/storage/self/primary$suffix", "saf:primary:${suffix.trimStart('/')}", path).distinct()
+        } else listOf(path)
+        val times = if (modified >= 1000L) listOf(modified, (modified / 1000L) * 1000L).distinct() else listOf(modified)
+        return paths.flatMap { p -> times.map { t -> fileKey(p, bytes, t) } }.distinct()
+    }
+    fun resolveLocalFile(item: RecordingSource, primaryDir: File = Environment.getExternalStorageDirectory()): File? {
+        val rawPath = item.key.removeSuffix("|${item.bytes}|${item.modified}")
+        val candidates = buildList {
+            if (!item.source.startsWith("content://")) add(File(item.source))
+            if (rawPath.isNotEmpty() && !rawPath.startsWith("saf:") && !rawPath.startsWith("media:") && !rawPath.startsWith("content://")) {
+                add(File(rawPath))
+            }
+            if (rawPath.startsWith("saf:primary:")) add(File(primaryDir, rawPath.removePrefix("saf:primary:").trimStart('/')))
+            if (item.source.startsWith("content://com.android.externalstorage.documents/")) {
+                val decoded = runCatching { java.net.URLDecoder.decode(item.source, "UTF-8") }.getOrDefault("")
+                val rel = decoded.substringAfterLast("/document/primary:", "").takeIf { it.isNotEmpty() }
+                if (rel != null) add(File(primaryDir, rel.trimStart('/')))
+            }
+        }
+        return candidates.firstOrNull { f ->
+            f.isFile && f.canRead() && f.length() == item.bytes &&
+                (f.lastModified() == item.modified || (f.lastModified() / 1000L) == (item.modified / 1000L))
+        }
+    }
     fun savedRecording(ctx: Context, item: RecordingSource): org.json.JSONObject? {
         val path = item.key.removeSuffix("|${item.bytes}|${item.modified}")
-        val keys = aliases(path, item.bytes, item.modified, Environment.getExternalStorageDirectory().canonicalPath)
+        val keys = allAliases(path, item.bytes, item.modified, Environment.getExternalStorageDirectory().canonicalPath)
         val owner = LocalSettings.device(ctx)
         return keys.firstNotNullOfOrNull { LocalStore.of(ctx).get("rec-" + LocalStore.hash("$owner:$it")) }
     }

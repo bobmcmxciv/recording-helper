@@ -26,6 +26,7 @@ class AutoScanWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, param
         val queue = RecordingQueue.of(ctx)
         val fresh = eligible.filter { !Prefs.ledgerContains(ctx, it.key) }
         val added = queue.addAll(fresh)
+        queue.reconcileAutomatic(ctx, eligible, !inventory.truncated && inventory.errors == 0)
         status("发现 ${inventory.files.size} 条录音 · 范围内 ${eligible.size} 条 · 新入队 $added 条" +
             (if (inventory.errors > 0) " · ${inventory.errors} 处目录无法读取，请检查授权" else "") +
             (if (inventory.truncated) " · 文件过多，请缩小扫描目录" else "") +

@@ -109,6 +109,15 @@ object LocalAsr {
     fun transcribe(ctx: Context, audio: File, onSegment: (Transcriber.Segment) -> Unit = {}): Outcome =
         open(ctx).use { it.transcribe(audio, onSegment) }
 
+    fun defaultAccelerated(ctx: Context): Boolean {
+        if (File(ctx.filesDir, "npucache").listFiles()?.any { it.name != "model-fingerprint.txt" && it.length() > 0 } == true) return true
+        if (android.os.Build.VERSION.SDK_INT >= 31 && SenseVoice.googleNeuronOptions(android.os.Build.SOC_MODEL) != null) return true
+        return false
+    }
+
+    fun isAccelerated(ctx: Context): Boolean =
+        com.bob.recordinghelper.local.LocalSettings.prefs(ctx).getBoolean("asrAcceleration", defaultAccelerated(ctx))
+
     /**
      * 按芯片排好序的引擎，去掉曾把进程搞崩的。残留的 trying 标记只说明进程死在了引擎里；
      * 被强行停止、被杀后台、低内存回收也会留下它，所以要查系统记录的退出原因，只有崩溃才停用。
@@ -116,10 +125,7 @@ object LocalAsr {
      */
     fun usableEngines(ctx: Context): List<SenseVoice.Engine> {
         val installed = installTime(ctx)
-        // Stable is the default on every device. Vendor delegates may block inside native
-        // compilation indefinitely (observed on Find X9 Pro); Java timeouts cannot stop them safely.
-        // Hardware acceleration is therefore an explicit experimental opt-in, not first-run setup.
-        val accelerated = com.bob.recordinghelper.local.LocalSettings.prefs(ctx).getBoolean("asrAcceleration", false)
+        val accelerated = isAccelerated(ctx)
         return (if (accelerated) engineOrder() else listOf(SenseVoice.Engine.CPU)).filter { e ->
             val trying = File(ctx.filesDir, "asr-trying-${e.name}")
             val bad = File(ctx.filesDir, "asr-bad-${e.name}")

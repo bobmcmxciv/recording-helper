@@ -43,6 +43,7 @@ class TodosFragment : TabFragment() {
     private var _b: FragmentTodosBinding? = null
     private val b get() = _b!!
     private var todos: List<JSONObject> = emptyList()
+    private var recordings: List<JSONObject> = emptyList()
     private var recordingDates: Map<String, LocalDate> = emptyMap()
     private var customRange: kotlin.Pair<LocalDate, LocalDate>? = null
     private var category = "all"
@@ -51,6 +52,22 @@ class TodosFragment : TabFragment() {
     private val selected = LinkedHashSet<String>()
     private var digestKey = ""
     private var digesting = false
+    private val digestHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val digestTicker = object : Runnable {
+        override fun run() {
+            if (_b != null && (digesting || AnalysisState.isActive("digest:$digestKey"))) {
+                apply()
+                digestHandler.postDelayed(this, 1000)
+            }
+        }
+    }
+    private val analysisListener = {
+        if (digesting || AnalysisState.isActive("digest:$digestKey")) {
+            apply()
+            digestHandler.removeCallbacks(digestTicker)
+            digestHandler.postDelayed(digestTicker, 1000)
+        }
+    }
 
     private val adapter = TodoAdapter(
         onToggle = { id, checked -> mutate { LocalStore.of(it).setDone(id, checked) } },
@@ -59,6 +76,7 @@ class TodosFragment : TabFragment() {
         onSource = { recordingId -> startActivity(RecordingDetailActivity.intent(requireContext(), recordingId)) },
         onCategory = { id, next -> mutate { LocalStore.of(it).setCategory(id, next) } },
         onSummaryRefresh = { refreshDigest() },
+        onOpenTrace = { startActivity(com.bob.recordinghelper.TranscribeLiveActivity.intent(requireContext())) },
         onCategoryFilter = { category = it; apply() },
         onStatusFilter = { status = it; apply() },
         isSelected = { selected.contains(it) },
@@ -98,6 +116,21 @@ class TodosFragment : TabFragment() {
         })
     }
 
+    override fun onResume() {
+        super.onResume()
+        AnalysisState.addListener(analysisListener)
+        if (digesting || AnalysisState.isActive("digest:$digestKey")) {
+            digestHandler.removeCallbacks(digestTicker)
+            digestHandler.postDelayed(digestTicker, 1000)
+        }
+    }
+
+    override fun onPause() {
+        digestHandler.removeCallbacks(digestTicker)
+        AnalysisState.removeListener(analysisListener)
+        super.onPause()
+    }
+
     override fun onDestroyView() { _b = null; super.onDestroyView() }
 
     override fun refresh() {
@@ -105,9 +138,10 @@ class TodosFragment : TabFragment() {
         val ctx = requireContext().applicationContext
         load({
             val store = LocalStore.of(ctx)
-            val dates = store.all("recording").associate { it.getString("id") to (Ui.localDate(it.optString("occurredAt")) ?: LocalDate.now()) }
-            store.all("todo") to dates
-        }) { (rows, dates) -> todos = rows; recordingDates = dates; apply() }
+            val allRecs = store.all("recording")
+            val dates = allRecs.associate { it.getString("id") to (Ui.localDate(it.optString("occurredAt")) ?: LocalDate.now()) }
+            Triple(store.all("todo"), allRecs, dates)
+        }) { (rows, recs, dates) -> todos = rows; recordings = recs; recordingDates = dates; apply() }
     }
 
     // ---------- filters ----------
@@ -157,13 +191,39 @@ class TodosFragment : TabFragment() {
 
         digestKey = "${rangeLabel(r)}:${r?.first}:${r?.second}"
         val digest = DigestWorker.cached(requireContext(), digestKey)
+        val snap = AnalysisState.snapshot()
+        val activeDigest = digesting || snap.activeId == "digest:$digestKey"
+        val recsInRange = recordings.filter { rec ->
+            r == null || (Ui.localDate(rec.optString("occurredAt")) ?: LocalDate.now()).let { d -> !d.isBefore(r.first) && !d.isAfter(r.second) }
+        }
+        val liveOverview = if (activeDigest) {
+            val elapsed = if (snap.startedAt > 0L) ((System.currentTimeMillis() - snap.startedAt) / 1000L).coerceAtLeast(1L) else 0L
+            val phaseLine = if (snap.activeId == "digest:$digestKey" && snap.phase.isNotBlank()) snap.phase else "正在准备整理模型，生成本时段重点总结…"
+            val clock = if (elapsed > 0L) "（已用时 ${elapsed} 秒）" else ""
+            val stream = if (snap.activeId == "digest:$digestKey") snap.streamText.trim() else ""
+            if (stream.isNotBlank()) "$phaseLine$clock\n\n$stream"
+            else "$phaseLine$clock\n点击可全屏查看模型实时推理过程。"
+        } else digest?.optString("overview").orEmpty()
+        val sourceLine = if (activeDigest) {
+            val elapsed = if (snap.startedAt > 0L) ((System.currentTimeMillis() - snap.startedAt) / 1000L).coerceAtLeast(1L) else 0L
+            listOfNotNull(
+                snap.modelLabel.takeIf { it.isNotBlank() },
+                if (elapsed > 0L) "已用时 ${elapsed} 秒" else null,
+                "点击查看实时推理过程",
+            ).joinToString(" · ")
+        } else {
+            val src = digest?.optString("source").orEmpty()
+            val st = digest?.optString("stats").orEmpty()
+            listOf(src, st, if (src.isNotBlank()) "点击查看推理过程" else "").filter { it.isNotBlank() }.joinToString(" · ")
+        }
         val summary = TodoAdapter.Summary(
-            title = "${rangeLabel(r)} ${open.size} 件事",
+            title = "${rangeLabel(r)} · ${open.size} 件待办 · ${recsInRange.size} 份录音",
             counts = "公事 ${byCat("work")} · 私事 ${byCat("personal")} · 未分类 ${byCat("")}" + if (overdue > 0) " · 逾期 $overdue" else "",
-            overview = if (digesting) "正在整理这个时段的重点…本地模型可能需要一两分钟。" else digest?.optString("overview").orEmpty(),
-            error = if (digesting) "" else digest?.optString("error").orEmpty(), source = if (digesting) "" else digest?.optString("source").orEmpty(),
-            first = if (digesting) emptyList() else digest?.optJSONArray("first")?.let { a -> (0 until a.length()).map { a.optString(it) } } ?: emptyList(),
-            category = category, status = status, busy = digesting,
+            overview = liveOverview,
+            error = if (activeDigest) "" else digest?.optString("error").orEmpty(),
+            source = sourceLine,
+            first = if (activeDigest) emptyList() else digest?.optJSONArray("first")?.let { a -> (0 until a.length()).map { a.optString(it) } } ?: emptyList(),
+            category = category, status = status, busy = activeDigest,
         )
         val rows = ArrayList<TodoAdapter.Row>()
         rows.add(TodoAdapter.Row.Header2(summary))
@@ -238,6 +298,14 @@ class TodosFragment : TabFragment() {
 
     private fun refreshDigest() {
         val ctx = requireContext().applicationContext
+        if (digesting || AnalysisState.isActive("digest:$digestKey")) {
+            DigestWorker.cancel(ctx)
+            digesting = false
+            digestHandler.removeCallbacks(digestTicker)
+            toast("已取消时段总结")
+            apply()
+            return
+        }
         if (LlmEngine.modelIn(LocalAsr.llmDir(ctx)) == null && !LlmSettings.remoteEnabled(ctx)) {
             MaterialAlertDialogBuilder(requireContext()).setTitle("准备整理方式").setMessage("使用本地模型或配置在线服务后，可以生成时段总结。")
                 .setPositiveButton("去设置") { _, _ -> startActivity(AiSettingsActivity.intent(requireContext())) }.setNegativeButton("取消", null).show()
@@ -245,17 +313,26 @@ class TodosFragment : TabFragment() {
         }
         val r = range()
         val inRange = todos.filter { r == null || sourceDate(it).let { d -> !d.isBefore(r.first) && !d.isAfter(r.second) } }.filter { !it.optBoolean("done") }
-        if (inRange.isEmpty()) { toast("这个时段没有待推进的事"); return }
-        val lines = inRange.sortedBy { DueDates.sortKey(it.optString("due")) }.map { t ->
+        val recsInRange = recordings.filter { rec ->
+            r == null || (Ui.localDate(rec.optString("occurredAt")) ?: LocalDate.now()).let { d -> !d.isBefore(r.first) && !d.isAfter(r.second) }
+        }
+        val todoLines = inRange.sortedBy { DueDates.sortKey(it.optString("due")) }.map { t ->
             val cat = when (LocalAnalysis.category(t.optString("category"))) { "work" -> "公事"; "personal" -> "私事"; else -> "未分类" }
             val due = t.optString("due").ifBlank { "无期限" }
             val state = if (DueDates.state(t.optString("due")) == DueDates.State.OVERDUE) "已逾期" else if (!t.optBoolean("reviewed")) "待核对" else ""
-            "[$cat] ${t.optString("title")}（$due）$state".trim()
+            "待办[$cat] ${t.optString("title")}（$due）$state".trim()
         }
+        val recLines = recsInRange.filter { it.optString("summary").isNotBlank() }.map { rec ->
+            "录音纪要《${rec.optString("title").ifBlank { "录音" }}》：${rec.optString("summary").replace('\n', ' ').trim().take(160)}"
+        }
+        val lines = todoLines + recLines
+        if (lines.isEmpty()) { toast("这个时段还没有待推进的事项或已整理的录音纪要"); return }
         DigestWorker.clear(ctx, digestKey)
         val id = DigestWorker.enqueue(ctx, digestKey, rangeLabel(r), lines)
         digesting = true; apply()
-        WorkManager.getInstance(ctx).getWorkInfoByIdLiveData(id).observe(viewLifecycleOwner) { info -> if (info != null && info.state.isFinished) { digesting = false; apply() } }
+        digestHandler.removeCallbacks(digestTicker)
+        digestHandler.postDelayed(digestTicker, 1000)
+        WorkManager.getInstance(ctx).getWorkInfoByIdLiveData(id).observe(viewLifecycleOwner) { info -> if (info != null && info.state.isFinished) { digesting = false; digestHandler.removeCallbacks(digestTicker); apply() } }
     }
 
     private fun swipeCallback() = object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
@@ -293,6 +370,7 @@ class TodoAdapter(
     private val onSource: (String) -> Unit,
     private val onCategory: (String, String) -> Unit,
     private val onSummaryRefresh: () -> Unit,
+    private val onOpenTrace: () -> Unit,
     private val onCategoryFilter: (String) -> Unit,
     private val onStatusFilter: (Int) -> Unit,
     private val isSelected: (String) -> Boolean,
@@ -339,8 +417,9 @@ class TodoAdapter(
                 vb.card.setOnLongClickListener { onLongPress(id); true }
                 val sel = multiMode() && isSelected(id)
                 vb.card.isChecked = sel
-                vb.card.strokeWidth = if (sel) (vb.root.resources.displayMetrics.density * 2).toInt() else 0
-                vb.card.strokeColor = ContextCompat.getColor(vb.root.context, R.color.md_primary)
+                val d = vb.root.resources.displayMetrics.density
+                vb.card.strokeWidth = (if (sel) d * 2f else d).toInt().coerceAtLeast(1)
+                vb.card.strokeColor = ContextCompat.getColor(vb.root.context, if (sel) R.color.md_primary else R.color.glass_card_stroke)
             }
         }
     }
@@ -348,15 +427,21 @@ class TodoAdapter(
         b.tvTitle.text = s.title
         b.tvCounts.text = s.counts
         val has = s.overview.isNotBlank()
-        b.tvOverview.visibility = if (has || s.error.isNotBlank()) View.VISIBLE else View.GONE
-        b.tvOverview.text = if (has) s.overview else "无法生成总结：${s.error}"
-        b.tvSource.visibility = if (has && s.source.isNotBlank()) View.VISIBLE else View.GONE
-        b.tvSource.text = s.source + " · 按来源录音时间统计"
+        b.tvOverview.visibility = View.VISIBLE
+        b.tvOverview.text = when {
+            has -> s.overview
+            s.error.isNotBlank() -> "无法生成总结：${s.error}"
+            else -> "点击右上角「一键总结」，由模型汇总本时段的录音纪要与待办重点。"
+        }
+        b.tvOverview.setOnClickListener { if (s.busy || has) onOpenTrace() else onSummaryRefresh() }
+        b.tvSource.visibility = if (s.source.isNotBlank()) View.VISIBLE else View.GONE
+        b.tvSource.text = s.source
+        b.tvSource.setOnClickListener { onOpenTrace() }
         b.tvFirstTitle.visibility = if (s.first.isNotEmpty()) View.VISIBLE else View.GONE
         b.tvFirst.visibility = b.tvFirstTitle.visibility
         b.tvFirst.text = s.first.mapIndexed { i, t -> "${i + 1}. $t" }.joinToString("\n")
-        b.btnRefresh.text = if (s.busy) "整理中" else if (has) "刷新" else "总结"
-        b.btnRefresh.isEnabled = !s.busy
+        b.btnRefresh.text = if (s.busy) "取消总结" else if (has) "一键重新总结" else "一键总结"
+        b.btnRefresh.isEnabled = true
         b.btnRefresh.setOnClickListener { onSummaryRefresh() }
         b.categoryFilters.setOnCheckedStateChangeListener(null)
         b.categoryFilters.check(when (s.category) { "work" -> R.id.catWork; "personal" -> R.id.catPersonal; "none" -> R.id.catNone; else -> R.id.catAll })

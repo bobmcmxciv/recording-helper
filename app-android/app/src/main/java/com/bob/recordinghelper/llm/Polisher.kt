@@ -44,6 +44,7 @@ class Polisher(private val model: TextModel) {
             if (cancelled) throw InterruptedException("polishing cancelled")
             val partial = StringBuilder()
             val maxTokens = (model.countTokens(c) * 1.6).toInt() + 64
+            onProgress(Progress(i, chunks.size, ""))
             val raw = model.chat(SYSTEM, user(context, c), maxTokens) { piece ->
                 partial.append(piece)
                 onProgress(Progress(i, chunks.size, partial.toString()))

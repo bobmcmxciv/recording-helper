@@ -71,7 +71,7 @@ object Prefs {
     // How transcripts are polished: local = on-device LLM (while charging, text never leaves the phone); off = not at all.
     const val POLISH_LOCAL = "local"
     const val POLISH_OFF = "off"
-    fun polishMode(ctx: Context): String = sp(ctx).getString("polishMode", POLISH_LOCAL)!!.let { if (it == POLISH_OFF) it else POLISH_LOCAL }
+    fun polishMode(ctx: Context): String = sp(ctx).getString("polishMode", POLISH_OFF)!!.let { if (it == POLISH_LOCAL) it else POLISH_OFF }
     fun setPolishMode(ctx: Context, mode: String) = sp(ctx).edit().putString("polishMode", mode).apply()
 
     /** 最近一次本地转写的摘要（引擎、耗时），设置页展示用 */

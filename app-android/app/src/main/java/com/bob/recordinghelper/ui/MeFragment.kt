@@ -54,6 +54,17 @@ class MeFragment : TabFragment() {
         }
     }
 
+    private val modelListener = { refresh() }
+    override fun onResume() {
+        super.onResume()
+        com.bob.recordinghelper.LiveAsr.addListener(modelListener)
+        AnalysisState.addListener(modelListener)
+    }
+    override fun onPause() {
+        com.bob.recordinghelper.LiveAsr.removeListener(modelListener)
+        AnalysisState.removeListener(modelListener)
+        super.onPause()
+    }
     override fun onDestroyView() { _b = null; super.onDestroyView() }
 
     override fun refresh() {
@@ -68,9 +79,16 @@ class MeFragment : TabFragment() {
         val asr = LocalAsr.modelReady(ctx)
         val llm = LlmEngine.modelIn(LocalAsr.llmDir(ctx)) != null
         val spk = File(LocalAsr.modelDir(ctx), "spk.tflite").length() > 0
-        row(b.listSetup, R.drawable.ic_memory, "语音模型", if (asr) "已就绪 · 本机转写" else "未安装 · 到模型中心导入") { startActivity(SettingsActivity.intent(ctx, "models")) }
+        val aSnap = AnalysisState.snapshot()
+        val lSnap = com.bob.recordinghelper.LiveAsr.snapshot()
+        row(b.listSetup, R.drawable.ic_memory, "语音模型", when {
+            lSnap.active -> "正在转写：${lSnap.title} · ${lSnap.phase}"
+            asr -> "已就绪 · 本机转写"
+            else -> "未安装 · 到模型中心导入"
+        }) { startActivity(SettingsActivity.intent(ctx, "models")) }
         val remote = com.bob.recordinghelper.llm.LlmSettings.remoteEnabled(ctx)
         row(b.listSetup, R.drawable.ic_auto, "AI 整理", when {
+            aSnap.running || lSnap.llmActive -> "正在工作：${aSnap.modelLabel.ifBlank { lSnap.llmModel }} · ${aSnap.phase.ifBlank { lSnap.llmStatus }}"
             remote -> "在线 AI 服务 · " + (com.bob.recordinghelper.llm.LlmProviders.byId(com.bob.recordinghelper.llm.LlmSettings.providerId(ctx))?.name ?: "")
             llm -> "本地模型已就绪 · 自动生成纪要和待办"
             else -> "本地模型未安装 · 可下载或改用在线服务"
@@ -81,7 +99,12 @@ class MeFragment : TabFragment() {
         b.listTools.removeAllViews()
         row(b.listTools, R.drawable.ic_mic, "现场录音", "录音并实时转写") { startActivity(Intent(ctx, MicrophoneActivity::class.java)) }
         row(b.listTools, R.drawable.ic_voice, "声纹库", "认出自己和熟悉的声音") { startActivity(Intent(ctx, VoiceLibraryActivity::class.java)) }
-        row(b.listTools, R.drawable.ic_visibility, "转写过程", "查看模型正在处理什么") { startActivity(Intent(ctx, TranscribeLiveActivity::class.java)) }
+        val liveDesc = when {
+            aSnap.running || lSnap.llmActive -> "正在运行：${aSnap.phase.ifBlank { lSnap.llmStatus }}（点此查看实时流）"
+            lSnap.active -> "正在转写：${lSnap.title}（点此查看实时流）"
+            else -> "实时查看语音转写与大模型总结推理流"
+        }
+        row(b.listTools, R.drawable.ic_visibility, "转写与推理过程", liveDesc) { startActivity(Intent(ctx, TranscribeLiveActivity::class.java)) }
         row(b.listTools, R.drawable.ic_download, "导出数据", "转写、纪要和待办（JSON）") { export.launch("recording-helper-backup.json") }
         row(b.listTools, R.drawable.ic_settings, "全部设置", "模型、录音来源、同步、系统") { startActivity(Intent(ctx, SettingsActivity::class.java)) }
         row(b.listTools, R.drawable.ic_arrow_forward, "首次设置向导", "重新走一遍模型、目录与范围设置") { com.bob.recordinghelper.local.Onboarding.reopen(ctx); startActivity(OnboardingActivity.intent(ctx)) }

@@ -48,16 +48,43 @@ class AiSettingsActivity : AppCompatActivity() {
         b.provider.setOnItemClickListener { _, _, position, _ -> selectProvider(LlmProviders.all[position], keepFields = false) }
         fill()
 
-        b.cardLocal.setOnClickListener { remoteSelected = false; LlmSettings.useLocal(this); AnalysisWorker.schedule(this, true); render() }
+        b.cardLocal.setOnClickListener {
+            val wasRemote = LlmSettings.mode(this) == LlmSettings.MODE_REMOTE
+            remoteSelected = false
+            LlmSettings.useLocal(this)
+            if (wasRemote) {
+                AnalysisWorker.cancelActive(this, pauseBackground = false)
+                AnalysisWorker.schedule(this, false)
+            }
+            render()
+        }
         b.cardRemote.setOnClickListener { if (!remoteSelected) consent { consented = true; remoteSelected = true; render() } }
         b.btnTest.setOnClickListener { test() }
         b.btnSave.setOnClickListener { save() }
         b.btnBackToLocal.setOnClickListener {
             MaterialAlertDialogBuilder(this).setTitle("改回本地模型？").setMessage("会清除保存的 API Key。已经发送过的内容无法撤回。")
-                .setPositiveButton("改回本地") { _, _ -> LlmSettings.forget(this); remoteSelected = false; fill(); AnalysisWorker.schedule(this, true); render() }
+                .setPositiveButton("改回本地") { _, _ ->
+                    LlmSettings.forget(this)
+                    remoteSelected = false
+                    fill()
+                    AnalysisWorker.cancelActive(this, pauseBackground = false)
+                    AnalysisWorker.schedule(this, false)
+                    render()
+                }
                 .setNegativeButton("取消", null).show()
         }
         render()
+    }
+
+    private val analysisListener = { render() }
+    override fun onResume() {
+        super.onResume()
+        com.bob.recordinghelper.local.AnalysisState.addListener(analysisListener)
+        render()
+    }
+    override fun onPause() {
+        com.bob.recordinghelper.local.AnalysisState.removeListener(analysisListener)
+        super.onPause()
     }
 
     private fun fill() {
@@ -77,13 +104,16 @@ class AiSettingsActivity : AppCompatActivity() {
 
     private fun render() {
         val remoteActive = LlmSettings.remoteEnabled(this)
+        val snap = com.bob.recordinghelper.local.AnalysisState.snapshot()
         b.cardLocal.isChecked = !remoteSelected
         b.cardRemote.isChecked = remoteSelected
         b.cardLocal.strokeWidth = if (!remoteSelected) dp(2) else 0
         b.cardRemote.strokeWidth = if (remoteSelected) dp(2) else 0
         val llm = LlmEngine.modelIn(LocalAsr.llmDir(this))
-        b.tvLocalStatus.text = if (llm != null) "完全离线，充电时自动整理。已安装 ${llm.name}" else "完全离线。尚未安装本地大模型，可在模型中心下载。"
-        b.tvRemoteStatus.text = if (remoteActive) "已启用：${provider.name} · ${LlmSettings.model(this)}" else "需要网络和 API Key。转写文字会发送到服务商的服务器。"
+        val localBase = if (llm != null) "完全离线，充电时自动整理。已安装 ${llm.name}" else "完全离线。尚未安装本地大模型，可在模型中心下载。"
+        b.tvLocalStatus.text = if (!remoteActive && snap.running && snap.phase.isNotBlank()) "$localBase\n当前状态：${snap.phase}" else localBase
+        val remoteBase = if (remoteActive) "已启用：${provider.name} · ${LlmSettings.model(this)}" else "需要网络和 API Key。转写文字会发送到服务商的服务器。"
+        b.tvRemoteStatus.text = if (remoteActive && snap.running && snap.phase.isNotBlank()) "$remoteBase\n当前状态：${snap.phase}" else remoteBase
         b.remoteForm.visibility = if (remoteSelected) View.VISIBLE else View.GONE
         b.btnBackToLocal.visibility = if (remoteActive) View.VISIBLE else View.GONE
         val last = LlmSettings.lastCallAt(this)
@@ -124,6 +154,8 @@ class AiSettingsActivity : AppCompatActivity() {
         try {
             if (!consented && LlmSettings.consentAt(this) == 0L) { consent { consented = true; save() }; return }
             LlmSettings.useRemote(this, provider.id, url, key, model, b.wifiOnly.isChecked)
+            com.bob.recordinghelper.local.LocalStore.of(this).requeueQuickExtracted()
+            AnalysisWorker.cancelActive(this, pauseBackground = false)
             AnalysisWorker.schedule(this, true)
             Ui.toast(this, "已启用在线 AI 服务，待整理的记录会尽快处理")
             render()
